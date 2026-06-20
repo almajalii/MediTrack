@@ -110,16 +110,21 @@ class _NearbyPharmaciesWidgetState extends State<NearbyPharmaciesWidget> {
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.local_pharmacy,
-                  color: isDarkMode ? AppColors.primary.withValues(alpha: 0.8) : AppColors.primary,
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.local_pharmacy, color: AppColors.primary, size: 18),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Text(
                   'Nearby Pharmacies',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  style: TextStyle(
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: isDarkMode ? Colors.grey[300] : Colors.black87,
+                    color: isDarkMode ? Colors.white : AppColors.darkBlue,
                   ),
                 ),
               ],
@@ -212,82 +217,67 @@ class _NearbyPharmaciesWidgetState extends State<NearbyPharmaciesWidget> {
             Column(
               children: _pharmacies.map((pharmacy) {
                 return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
+                  margin: const EdgeInsets.only(bottom: 8),
                   decoration: BoxDecoration(
                     color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isDarkMode ? Colors.grey[800]! : Colors.grey[200]!,
-                      width: 1,
+                      color: isDarkMode ? const Color(0xFF2C2C2C) : const Color(0xFFEEF0F5),
                     ),
                   ),
                   child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
                     leading: Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(7),
                       decoration: BoxDecoration(
-                        color: pharmacy.isOpen ? Colors.green[100] : Colors.red[100],
+                        color: AppColors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(
-                        Icons.local_pharmacy,
-                        color: pharmacy.isOpen ? Colors.green[700] : Colors.red[700],
-                        size: 24,
-                      ),
+                      child: const Icon(Icons.local_pharmacy, color: AppColors.primary, size: 18),
                     ),
                     title: Text(
                       pharmacy.name,
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                        color: isDarkMode ? Colors.grey[300] : Colors.black87,
+                        fontSize: 13,
+                        color: isDarkMode ? Colors.grey[200] : AppColors.darkBlue,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    subtitle: Row(
                       children: [
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            if (pharmacy.distance != null) ...[
-                              Icon(Icons.directions_walk, size: 14, color: Colors.blue[600]),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${pharmacy.distance!.toStringAsFixed(1)} km',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.blue[600],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                            ],
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: pharmacy.isOpen ? Colors.green[100] : Colors.red[100],
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                pharmacy.isOpen ? 'Open' : 'Closed',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: pharmacy.isOpen ? Colors.green[800] : Colors.red[800],
-                                ),
+                        if (pharmacy.distance != null) ...[
+                          Icon(Icons.directions_walk, size: 12, color: AppColors.primary),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${pharmacy.distance!.toStringAsFixed(1)} km',
+                            style: TextStyle(fontSize: 11, color: AppColors.primary),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        if (pharmacy.isOpen != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: pharmacy.isOpen!
+                                  ? AppColors.success.withValues(alpha: 0.1)
+                                  : AppColors.error.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              pharmacy.isOpen! ? 'Open' : 'Closed',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: pharmacy.isOpen! ? AppColors.success : AppColors.error,
                               ),
                             ),
-                          ],
-                        ),
+                          ),
                       ],
                     ),
                     trailing: IconButton(
-                      icon: Icon(
-                        Icons.directions,
-                        color: AppColors.primary,
-                        size: 28,
-                      ),
+                      icon: const Icon(Icons.directions, color: AppColors.primary, size: 20),
                       onPressed: () => _openInMaps(pharmacy),
                       tooltip: 'Get Directions',
                     ),

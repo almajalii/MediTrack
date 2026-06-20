@@ -37,13 +37,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> loadUserData() async {
     if (user == null) return;
-
     setState(() => isLoading = true);
-
     final uid = user!.uid;
     final doc = await _firestore.collection('users').doc(uid).get();
     final data = doc.data();
-
     if (data != null) {
       displayNameController.text = data['displayName'] ?? '';
       emailController.text = data['email'] ?? '';
@@ -52,19 +49,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       medicalConditionsController.text = data['medicalConditions'] ?? '';
       emergencyContactController.text = data['emergencyContact'] ?? '';
     }
-
     setState(() => isLoading = false);
   }
 
   Future<void> saveUserData() async {
     if (user == null) return;
-
     setState(() => isSaving = true);
-
     try {
       final newDisplayName = displayNameController.text.trim();
-
-      // 1. Update Firestore
       await _firestore.collection('users').doc(user!.uid).set({
         'displayName': newDisplayName,
         'email': emailController.text.trim(),
@@ -73,21 +65,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'medicalConditions': medicalConditionsController.text.trim(),
         'emergencyContact': emergencyContactController.text.trim(),
       }, SetOptions(merge: true));
-
-      // 2. Update Firebase Auth displayName (THIS WAS MISSING!)
       await user!.updateDisplayName(newDisplayName);
-
-      // 3. Reload user to get updated info
       await user!.reload();
-
-      // 4. Update local user reference
-      setState(() {
-        user = _auth.currentUser;
-      });
-
-      // 5. Update saved account info
+      setState(() => user = _auth.currentUser);
       await _accountManager.saveCurrentAccount();
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -96,24 +77,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             duration: Duration(seconds: 2),
           ),
         );
-
-        // Go back to settings
         Navigator.pop(context);
       }
     } catch (e) {
-      print('Error saving profile: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error saving profile: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error saving profile: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => isSaving = false);
-      }
+      if (mounted) setState(() => isSaving = false);
     }
   }
 
@@ -122,267 +95,250 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDarkMode ? const Color(0xFF121212) : Colors.white,
+      backgroundColor: isDarkMode ? const Color(0xFF121212) : const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text('Edit Profile'),
+        title: const Text('Edit Profile', style: TextStyle(color: Colors.white)),
         centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: RadialGradient(
-              colors: [Color(0xFF1A3A6B), Color(0xFF00B9E4)],
-            ),
+          decoration: BoxDecoration(
+            gradient: isDarkMode
+                ? const LinearGradient(colors: [Color(0xFF1E1E1E), Color(0xFF2C2C2C)])
+                : const LinearGradient(
+                    colors: [AppColors.darkBlue, AppColors.primary],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
           ),
         ),
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-
-            // Profile Icon
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.person,
-                color: AppColors.primary,
-                size: 80,
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            Text(
-              user?.displayName ?? 'User',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: isDarkMode ? Colors.grey[300] : Colors.black87,
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            Text(
-              user?.email ?? '',
-              style: TextStyle(
-                fontSize: 14,
-                color: isDarkMode ? Colors.grey[500] : Colors.grey[600],
-              ),
-            ),
-
-            const SizedBox(height: 40),
-
-            // Basic Information Section
-            _buildSectionHeader(
-              context,
-              'Basic Information',
-              Icons.person_outline,
-              isDarkMode,
-            ),
-
-            const SizedBox(height: 16),
-
-            _buildThemedTextField(
-              context,
-              'Display Name',
-              displayNameController,
-              Icons.badge,
-              isDarkMode,
-            ),
-
-            _buildThemedTextField(
-              context,
-              'Email',
-              emailController,
-              Icons.email,
-              isDarkMode,
-            ),
-
-            _buildThemedTextField(
-              context,
-              'Phone Number',
-              phoneController,
-              Icons.phone,
-              isDarkMode,
-            ),
-
-            const SizedBox(height: 32),
-
-            // Medical Information Section
-            _buildSectionHeader(
-              context,
-              'Medical Information (Optional)',
-              Icons.medical_information,
-              isDarkMode,
-            ),
-
-            const SizedBox(height: 16),
-
-            _buildThemedTextField(
-              context,
-              'Allergies',
-              allergiesController,
-              Icons.healing,
-              isDarkMode,
-              maxLines: 3,
-            ),
-
-            _buildThemedTextField(
-              context,
-              'Medical Conditions',
-              medicalConditionsController,
-              Icons.local_hospital,
-              isDarkMode,
-              maxLines: 3,
-            ),
-
-            const SizedBox(height: 32),
-
-            // Emergency Contact Section
-            _buildSectionHeader(
-              context,
-              'Emergency Contact',
-              Icons.emergency,
-              isDarkMode,
-            ),
-
-            const SizedBox(height: 16),
-
-            _buildThemedTextField(
-              context,
-              'Emergency Contact',
-              emergencyContactController,
-              Icons.contact_phone,
-              isDarkMode,
-            ),
-
-            const SizedBox(height: 40),
-
-            // Save Button
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: isSaving ? null : saveUserData,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 3,
-                ),
-                child: isSaving
-                    ? const SizedBox(
-                  height: 24,
-                  width: 24,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
-                )
-                    : const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.save, color: Colors.white),
-                    SizedBox(width: 8),
-                    Text(
-                      'Save Changes',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Profile hero card
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: isDarkMode
+                          ? const LinearGradient(colors: [Color(0xFF1E1E1E), Color(0xFF2A2A2A)])
+                          : const LinearGradient(
+                              colors: [AppColors.primary, Color(0xFF007FA8)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                  ],
-                ),
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: isDarkMode ? 0.1 : 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.person_outline,
+                            color: isDarkMode ? AppColors.primary : Colors.white,
+                            size: 30,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                user?.displayName ?? 'User',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                user?.email ?? '',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  // Basic Information section
+                  _buildSectionHeader(context, Icons.person_outline, 'Basic Information', isDarkMode),
+                  const SizedBox(height: 12),
+                  _buildFieldCard(
+                    isDarkMode: isDarkMode,
+                    children: [
+                      _buildField('Display Name', displayNameController, Icons.badge_outlined, isDarkMode),
+                      _buildField('Email', emailController, Icons.email_outlined, isDarkMode),
+                      _buildField('Phone Number', phoneController, Icons.phone_outlined, isDarkMode, isLast: true),
+                    ],
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Medical Information section
+                  _buildSectionHeader(context, Icons.medical_information_outlined, 'Medical Information', isDarkMode),
+                  const SizedBox(height: 12),
+                  _buildFieldCard(
+                    isDarkMode: isDarkMode,
+                    children: [
+                      _buildField('Allergies', allergiesController, Icons.healing_outlined, isDarkMode, maxLines: 3),
+                      _buildField('Medical Conditions', medicalConditionsController, Icons.local_hospital_outlined, isDarkMode, maxLines: 3, isLast: true),
+                    ],
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Emergency Contact section
+                  _buildSectionHeader(context, Icons.emergency_outlined, 'Emergency Contact', isDarkMode),
+                  const SizedBox(height: 12),
+                  _buildFieldCard(
+                    isDarkMode: isDarkMode,
+                    children: [
+                      _buildField('Emergency Contact', emergencyContactController, Icons.contact_phone_outlined, isDarkMode, isLast: true),
+                    ],
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  // Save button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed: isSaving ? null : saveUserData,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
+                      ),
+                      child: isSaving
+                          ? const SizedBox(
+                              height: 22,
+                              width: 22,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            )
+                          : const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.check_rounded, size: 20),
+                                SizedBox(width: 8),
+                                Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+                ],
               ),
             ),
-
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
     );
   }
 
-  Widget _buildSectionHeader(
-      BuildContext context,
-      String title,
-      IconData icon,
-      bool isDarkMode,
-      ) {
+  Widget _buildSectionHeader(BuildContext context, IconData icon, String title, bool isDarkMode) {
     return Row(
       children: [
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.1),
+            color: AppColors.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: AppColors.primary, size: 20),
+          child: Icon(icon, color: AppColors.primary, size: 18),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         Text(
           title,
           style: TextStyle(
-            fontSize: 18,
+            fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: isDarkMode ? Colors.grey[300] : Colors.black87,
+            color: isDarkMode ? Colors.white : AppColors.darkBlue,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildThemedTextField(
-      BuildContext context,
-      String label,
-      TextEditingController controller,
-      IconData icon,
-      bool isDarkMode, {
-        int maxLines = 1,
-      }) {
+  Widget _buildFieldCard({required bool isDarkMode, required List<Widget> children}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: isDarkMode ? Colors.black26 : Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(color: isDarkMode ? const Color(0xFF2C2C2C) : const Color(0xFFEEF0F5)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(children: children),
+      ),
+    );
+  }
+
+  Widget _buildField(
+    String label,
+    TextEditingController controller,
+    IconData icon,
+    bool isDarkMode, {
+    int maxLines = 1,
+    bool isLast = false,
+  }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
       child: TextFormField(
         controller: controller,
         maxLines: maxLines,
         style: TextStyle(
-          color: isDarkMode ? Colors.white : Colors.black,
+          fontSize: 14,
+          color: isDarkMode ? Colors.white : AppColors.darkBlue,
         ),
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: Icon(icon, color: AppColors.primary),
           labelStyle: TextStyle(
-            color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
+            fontSize: 13,
+            color: isDarkMode ? Colors.grey.shade500 : AppColors.indigoGray,
           ),
-          fillColor: isDarkMode ? const Color(0xFF2C2C2C) : const Color(0xFFF2F4F8),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Icon(icon, color: AppColors.primary, size: 20),
+          ),
+          fillColor: isDarkMode ? const Color(0xFF2A2A2A) : const Color(0xFFF5F7FA),
           filled: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: isDarkMode ? const Color(0xFF3C3C3C) : const Color(0xFFC8D1DC),
-            ),
+            borderSide: BorderSide(color: isDarkMode ? const Color(0xFF3C3C3C) : const Color(0xFFDDE3EE)),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: isDarkMode ? const Color(0xFF3C3C3C) : const Color(0xFFC8D1DC),
-            ),
+            borderSide: BorderSide(color: isDarkMode ? const Color(0xFF3C3C3C) : const Color(0xFFDDE3EE)),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(
-              color: AppColors.primary,
-              width: 2,
-            ),
+            borderSide: const BorderSide(color: AppColors.primary, width: 2),
           ),
         ),
       ),

@@ -1,4 +1,4 @@
-import 'package:bloc/bloc.dart';
+﻿import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meditrack/model/family_account.dart';
 import 'package:meditrack/model/family_member.dart';
@@ -41,6 +41,7 @@ class FamilyBloc extends Bloc<FamilyEvent, FamilyState> {
       final familyAccount = await familyRepository.createFamilyAccount(
         userId: event.userId,
         familyName: event.familyName,
+        displayName: event.displayName,
         primaryContactEmail: event.primaryContactEmail,
         primaryContactPhone: event.primaryContactPhone,
       );
@@ -326,7 +327,6 @@ class FamilyBloc extends Bloc<FamilyEvent, FamilyState> {
         isValid: true,
       ));
     } catch (e) {
-      print('Validation error: ${e.toString()}'); // Debug log
       emit(FamilyErrorState('Failed to validate invitation. Please check the code and try again.'));
     }
   }

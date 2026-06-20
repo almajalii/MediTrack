@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:meditrack/bloc/medicine_bloc/medicine_bloc.dart';
@@ -12,7 +13,6 @@ import 'package:meditrack/widgets/Time.dart';
 import 'package:meditrack/style/colors.dart';
 import 'package:meditrack/services/image.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
 import '../../bloc/image_bloc/image_bloc.dart';
 import '../../bloc/image_bloc/image_event.dart';
@@ -44,298 +44,131 @@ class _AddMedicineState extends State<AddMedicine> {
   final User? userCredential = FirebaseAuth.instance.currentUser;
 
   bool _isUploadingImage = false;
-  bool _isProcessingOCR = false;
   bool _isSearchingBarcode = false;
 
-  String? medicineValidator(value) {
-    if (value!.isEmpty) return "*";
+  // ── Validators ──────────────────────────────────────────────────────────────
+
+  String? _nameValidator(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'Medicine name is required';
+    if (v.length < 2) return 'Name must be at least 2 characters';
+    if (v.length > 100) return 'Name is too long (max 100 characters)';
+    if (!RegExp(r'[a-zA-Z]').hasMatch(v)) return 'Name must contain at least one letter';
     return null;
   }
 
-  // Search for medicine by barcode
+  String? _requiredDropdownValidator(String? value) {
+    if (value == null || value.trim().isEmpty) return 'Please select an option';
+    return null;
+  }
+
+  String? _quantityValidator(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'Quantity is required';
+    final n = int.tryParse(v);
+    if (n == null) return 'Enter a valid whole number';
+    if (n < 1) return 'Quantity must be at least 1';
+    if (n > 9999) return 'Quantity is too high (max 9999)';
+    return null;
+  }
+
+  // Expiry validated manually in submitMedicine since ExpiryDatePicker
+  // doesn't expose a validator parameter.
+  String? _validateExpiry() {
+    final v = expDate.text.trim();
+    if (v.isEmpty) return 'Expiry date is required';
+    try {
+      final parts = v.split('-');
+      if (parts.length != 3) return 'Invalid date format';
+      final date = DateTime(
+        int.parse(parts[2]),
+        int.parse(parts[1]),
+        int.parse(parts[0]),
+      );
+      if (date.isBefore(DateTime.now())) return 'This medicine has already expired';
+    } catch (_) {
+      return 'Invalid date';
+    }
+    return null;
+  }
+
+  // ── Barcode ─────────────────────────────────────────────────────────────────
+
   Future<void> _searchMedicineByBarcode(String barcode) async {
     setState(() => _isSearchingBarcode = true);
-
     try {
-      print('\n🔍 Searching for medicine with barcode: $barcode');
-
       final medicineData = await _barcodeService.getMedicineByBarcode(barcode);
-
       if (medicineData != null) {
-        // Auto-fill the form
         setState(() {
-          if (medName.text.isEmpty) {
-            medName.text = medicineData['name'] ?? '';
-          }
-
-          if (medType.text.isEmpty && medicineData['type']!.isNotEmpty) {
+          if (medName.text.isEmpty) medName.text = medicineData['name'] ?? '';
+          if (medType.text.isEmpty && (medicineData['type']?.isNotEmpty ?? false)) {
             medType.text = medicineData['type']!;
           }
-
-          if (medCategory.text.isEmpty && medicineData['category']!.isNotEmpty) {
+          if (medCategory.text.isEmpty && (medicineData['category']?.isNotEmpty ?? false)) {
             medCategory.text = medicineData['category']!;
           }
-
-          if (medNotes.text.isEmpty && medicineData['dosage']!.isNotEmpty) {
-            medNotes.text = medicineData['dosage']!;
-          }
         });
-
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                  '✅ Found: ${medicineData['name']} (${medicineData['source'] == 'firebase' ? 'Database' : 'API'})'
-              ),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 3),
-            ),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Found: ${medicineData['name']}'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ));
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('⚠️ Barcode not found. Please fill details manually.\nYour data will be saved for future use!'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 4),
-            ),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Barcode not found. Please fill in the details manually.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 4),
+          ));
         }
       }
-    } catch (e) {
-      print('❌ Error searching barcode: $e');
+    } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error searching barcode. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Error searching barcode. Please try again.'),
+          backgroundColor: Colors.red,
+        ));
       }
     } finally {
       setState(() => _isSearchingBarcode = false);
     }
   }
 
-  // OCR Text Extraction Method
-  Future<void> _extractTextFromImage(File imageFile) async {
-    setState(() => _isProcessingOCR = true);
-
-    try {
-      print('\n🔍 Starting OCR text extraction...');
-
-      final inputImage = InputImage.fromFile(imageFile);
-      final textRecognizer = TextRecognizer();
-
-      final RecognizedText recognizedText = await textRecognizer.processImage(inputImage);
-      final String fullText = recognizedText.text;
-
-      print('📝 Extracted text: $fullText');
-
-      // Parse the extracted text
-      final parsedData = _parseMedicineInfo(fullText);
-
-      // Auto-fill the form fields
-      setState(() {
-        if (parsedData['name'] != null && medName.text.isEmpty) {
-          medName.text = parsedData['name']!;
-        }
-
-        if (parsedData['dosage'] != null && medNotes.text.isEmpty) {
-          medNotes.text = parsedData['dosage']!;
-        }
-
-        if (parsedData['expiry'] != null && expDate.text.isEmpty) {
-          expDate.text = parsedData['expiry']!;
-        }
-
-        if (parsedData['quantity'] != null && quantity.text.isEmpty) {
-          quantity.text = parsedData['quantity']!;
-        }
-      });
-
-      textRecognizer.close();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Auto-filled from image!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-
-      print('✅ OCR extraction completed');
-    } catch (e) {
-      print('❌ Error during OCR: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not extract text. Please fill manually.'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
-    } finally {
-      setState(() => _isProcessingOCR = false);
-    }
-  }
-
-  // Parse medicine information from extracted text
-  Map<String, String> _parseMedicineInfo(String text) {
-    final Map<String, String> info = {};
-    final lines = text.split('\n');
-
-    // Look for medicine name (usually in first few lines, capitalized)
-    for (int i = 0; i < lines.length && i < 5; i++) {
-      final line = lines[i].trim();
-      if (line.length > 3 && line.length < 50 && RegExp(r'^[A-Z]').hasMatch(line)) {
-        info['name'] = line;
-        break;
-      }
-    }
-
-    // Look for expiry date patterns
-    final expiryPatterns = [
-      RegExp(r'exp[iry]*[:\s]*(\d{2}[/\-]\d{2}[/\-]\d{2,4})', caseSensitive: false),
-      RegExp(r'(\d{2}[/\-]\d{2}[/\-]\d{2,4})', caseSensitive: false),
-      RegExp(r'mfg[:\s]*\d{2}[/\-]\d{2}[/\-]\d{2,4}[^\d]*exp[:\s]*(\d{2}[/\-]\d{2}[/\-]\d{2,4})', caseSensitive: false),
-    ];
-
-    for (final pattern in expiryPatterns) {
-      final match = pattern.firstMatch(text);
-      if (match != null) {
-        String dateStr = match.group(1) ?? match.group(0)!;
-        info['expiry'] = _formatExpiryDate(dateStr);
-        break;
-      }
-    }
-
-    // Look for dosage information
-    final dosagePatterns = [
-      RegExp(r'(\d+\s*mg)', caseSensitive: false),
-      RegExp(r'(\d+\s*ml)', caseSensitive: false),
-      RegExp(r'(\d+\s*g)', caseSensitive: false),
-      RegExp(r'(\d+\s*mcg)', caseSensitive: false),
-    ];
-
-    for (final pattern in dosagePatterns) {
-      final match = pattern.firstMatch(text);
-      if (match != null) {
-        info['dosage'] = match.group(1) ?? '';
-        break;
-      }
-    }
-
-    // Look for quantity (tablets, capsules, etc.)
-    final quantityPatterns = [
-      RegExp(r'(\d+)\s*tablets?', caseSensitive: false),
-      RegExp(r'(\d+)\s*capsules?', caseSensitive: false),
-      RegExp(r'(\d+)\s*pills?', caseSensitive: false),
-      RegExp(r'qty[:\s]*(\d+)', caseSensitive: false),
-    ];
-
-    for (final pattern in quantityPatterns) {
-      final match = pattern.firstMatch(text);
-      if (match != null) {
-        info['quantity'] = match.group(1) ?? '';
-        break;
-      }
-    }
-
-    print('🎯 Parsed info: $info');
-    return info;
-  }
-
-  // Format expiry date to dd-mm-yyyy
-  String _formatExpiryDate(String dateStr) {
-    try {
-      dateStr = dateStr.replaceAll(RegExp(r'[^\d/\-]'), '');
-
-      final parts = dateStr.split(RegExp(r'[/\-]'));
-      if (parts.length != 3) return dateStr;
-
-      int day, month, year;
-
-      if (parts[2].length == 4) {
-        if (int.parse(parts[0]) > 12) {
-          day = int.parse(parts[0]);
-          month = int.parse(parts[1]);
-        } else if (int.parse(parts[1]) > 12) {
-          day = int.parse(parts[1]);
-          month = int.parse(parts[0]);
-        } else {
-          day = int.parse(parts[0]);
-          month = int.parse(parts[1]);
-        }
-        year = int.parse(parts[2]);
-      } else {
-        if (int.parse(parts[0]) > 12) {
-          day = int.parse(parts[0]);
-          month = int.parse(parts[1]);
-        } else if (int.parse(parts[1]) > 12) {
-          day = int.parse(parts[1]);
-          month = int.parse(parts[0]);
-        } else {
-          day = int.parse(parts[0]);
-          month = int.parse(parts[1]);
-        }
-        year = 2000 + int.parse(parts[2]);
-      }
-
-      return '${day.toString().padLeft(2, '0')}-${month.toString().padLeft(2, '0')}-$year';
-    } catch (e) {
-      print('Error formatting date: $e');
-      return dateStr;
-    }
-  }
-
   Future<void> _scanBarcode() async {
-    print('\n📷 Barcode scanner button pressed');
-
     final String? barcode = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => _BarcodeScannerScreen(
-          onBarcodeScanned: (scannedBarcode) {
-            print('✅ Barcode scanned: $scannedBarcode');
-          },
+          onBarcodeScanned: (_) {},
         ),
       ),
     );
-
     if (barcode != null && barcode.isNotEmpty) {
-      setState(() {
-        barcodeController.text = barcode;
-      });
-
-      // Automatically search for the medicine
+      setState(() => barcodeController.text = barcode);
       await _searchMedicineByBarcode(barcode);
     }
   }
 
-  void submitMedicine(File? selectedImage) async {
-    print('\n🚀 Submit button pressed');
+  // ── Submit ───────────────────────────────────────────────────────────────────
 
-    if (!formKey.currentState!.validate()) {
-      print('❌ Form validation failed');
+  Future<void> submitMedicine(File? selectedImage) async {
+    if (!formKey.currentState!.validate()) return;
+
+    final expiryError = _validateExpiry();
+    if (expiryError != null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please fill all required fields')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(expiryError),
+          backgroundColor: AppColors.error,
+        ));
       }
       return;
     }
 
-    print('✅ Form validation passed');
-    print('📝 Medicine name: ${medName.text.trim()}');
-    print('🖼️ Selected image: ${selectedImage?.path ?? "No image"}');
-
     setState(() => _isUploadingImage = true);
 
-    // Save barcode data to Firebase if barcode was scanned
     if (barcodeController.text.isNotEmpty) {
       await _barcodeService.saveUserMedicineBarcode(
         barcode: barcodeController.text,
@@ -346,39 +179,16 @@ class _AddMedicineState extends State<AddMedicine> {
       );
     }
 
-    // Save image locally if selected
     String? imagePath;
-    if (selectedImage != null) {
-      print('\n📸 Image selected, starting save process...');
-      print('Source image path: ${selectedImage.path}');
-
-      final bool imageExists = await selectedImage.exists();
-      print('Image file exists: $imageExists');
-
-      if (imageExists) {
-        imagePath = await _imageService.saveImageLocally(
-          imageFile: selectedImage,
-          userId: userCredential?.uid ?? '',
-          medicineName: medName.text.trim(),
-        );
-
-        if (imagePath != null) {
-          print('✅✅✅ Image saved successfully: $imagePath');
-        } else {
-          print('❌❌❌ Image save returned null');
-        }
-      } else {
-        print('❌ Image file does not exist at source path!');
-      }
-    } else {
-      print('ℹ️ No image selected to save');
+    if (selectedImage != null && await selectedImage.exists()) {
+      imagePath = await _imageService.saveImageLocally(
+        imageFile: selectedImage,
+        userId: userCredential?.uid ?? '',
+        medicineName: medName.text.trim(),
+      );
     }
 
     setState(() => _isUploadingImage = false);
-
-    print('\n📦 Creating medicine object...');
-    print('Medicine name: ${medName.text.trim()}');
-    print('Image path to save: $imagePath');
 
     final newMedicine = Medicine(
       id: '',
@@ -391,56 +201,28 @@ class _AddMedicineState extends State<AddMedicine> {
       dateAdded: DateTime.now(),
       dateExpired: expDate.text.isNotEmpty
           ? DateTime.tryParse(expDate.text.split('-').reversed.join('-')) ??
-          DateTime.now()
+              DateTime.now()
           : DateTime.now().add(const Duration(days: 365)),
       imageUrl: imagePath,
     );
 
-    print('🎯 Medicine object created with imageUrl: ${newMedicine.imageUrl}');
-
     if (mounted) {
-      print('📤 Dispatching AddMedicineEvent to BLoC...');
       context.read<MedicineBloc>().add(
-        AddMedicineEvent(userCredential?.uid ?? '', newMedicine),
-      );
-
-      // Clear image from BLoC
+            AddMedicineEvent(userCredential?.uid ?? '', newMedicine),
+          );
       context.read<ImageBloc>().add(const RemoveImageEvent());
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Medicine added successfully!')),
-      );
-
-      print('🔙 Popping navigation...\n');
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Medicine added successfully!'),
+        backgroundColor: Colors.green,
+      ));
       Navigator.of(context).pop();
     }
   }
 
   Future<void> _pickImage() async {
-    print('\n📷 Image picker button pressed');
-
     final file = await _imageService.showImageSourceDialog(context);
-
-    print('📷 Received file from dialog: ${file?.path ?? "null"}');
-
-    if (file != null) {
-      print('✅ Image received from picker: ${file.path}');
-      final exists = await file.exists();
-      print('File exists check: $exists');
-
-      if (exists) {
-        // Update BLoC with the image
-        print('🖼️ BLoC: Setting image - ${file.path}');
-        context.read<ImageBloc>().add(SetImageEvent(file));
-        print('✅ Image sent to BLoC');
-
-        // Extract text from image using OCR
-        await _extractTextFromImage(file);
-      } else {
-        print('❌ Received file does not exist!');
-      }
-    } else {
-      print('❌ No image received from picker');
+    if (file != null && await file.exists()) {
+      if (mounted) context.read<ImageBloc>().add(SetImageEvent(file));
     }
   }
 
@@ -456,345 +238,532 @@ class _AddMedicineState extends State<AddMedicine> {
     super.dispose();
   }
 
+  // ── UI helpers ───────────────────────────────────────────────────────────────
+
+  Widget _sectionCard({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+    required bool isDarkMode,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: isDarkMode
+                ? Colors.black26
+                : Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(
+          color: isDarkMode ? const Color(0xFF2C2C2C) : const Color(0xFFEEF0F5),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: AppColors.primary, size: 17),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: isDarkMode ? Colors.grey[300] : AppColors.darkBlue,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _fieldDecoration({
+    required String label,
+    required bool isDarkMode,
+    IconData? prefixIcon,
+    String? hint,
+    Widget? suffix,
+  }) {
+    final borderColor =
+        isDarkMode ? const Color(0xFF3C3C3C) : const Color(0xFFC8D1DC);
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      hintStyle: TextStyle(fontSize: 12, color: Colors.grey[500]),
+      labelStyle:
+          TextStyle(color: isDarkMode ? Colors.grey[400] : Colors.grey[700]),
+      prefixIcon: prefixIcon != null
+          ? Icon(prefixIcon,
+              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+              size: 20)
+          : null,
+      suffixIcon: suffix,
+      filled: true,
+      fillColor: isDarkMode ? const Color(0xFF2C2C2C) : AppColors.lightGray,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: borderColor),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.error),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.error, width: 2),
+      ),
+    );
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDarkMode ? const Color(0xFF121212) : Colors.white,
+      backgroundColor:
+          isDarkMode ? const Color(0xFF121212) : const Color(0xFFF5F7FA),
       appBar: MyAppBar.build(context, () => ExpiryReminder()),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Form(
             key: formKey,
-            child: Center(
-              child: Column(
-                children: [
-                  // Pill Icon at the top
-                  const SizedBox(height: 30),
-                  const Icon(
-                    FontAwesomeIcons.pills,
-                    color: AppColors.primary,
-                    size: 80,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Add New Medicine',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: isDarkMode ? Colors.grey[200] : Colors.black87,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // ── Header ──────────────────────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [AppColors.primary, Color(0xFF007FA8)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
                   ),
-                  const SizedBox(height: 30),
-
-                  // Medicine Name
-                  SizedBox(
-                    width: 300,
-                    child: myTextField.buildTextField(
-                      "Medicine Name",
-                      medName,
-                      validator: medicineValidator,
-                    ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(FontAwesomeIcons.pills,
+                            color: Colors.white, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Add New Medicine',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Fill in the details below',
+                            style: TextStyle(
+                                color: Colors.white70, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 20),
+                ),
 
-                  // Type and Category
-                  SizedBox(
-                    width: 300,
-                    child: MyDropdownField(
-                      label: "Medicine Type",
+                const SizedBox(height: 14),
+
+                // ── Basic Info ───────────────────────────────────────────────
+                _sectionCard(
+                  title: 'Basic Information',
+                  icon: Icons.medication_outlined,
+                  isDarkMode: isDarkMode,
+                  children: [
+                    TextFormField(
+                      controller: medName,
+                      textCapitalization: TextCapitalization.words,
+                      validator: _nameValidator,
+                      style: TextStyle(
+                          color: isDarkMode ? Colors.white : Colors.black),
+                      decoration: _fieldDecoration(
+                        label: 'Medicine Name',
+                        isDarkMode: isDarkMode,
+                        prefixIcon: Icons.medication,
+                        hint: 'e.g. Paracetamol 500mg',
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    MyDropdownField(
+                      label: 'Medicine Type',
                       value: medType.text,
                       items: medicineTypes,
-                      validator: medicineValidator,
-                      onChanged: (value) => medType.text = value!,
+                      validator: _requiredDropdownValidator,
+                      onChanged: (value) =>
+                          setState(() => medType.text = value!),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: 300,
-                    child: MyDropdownField(
-                      label: "Medicine Category",
+                    MyDropdownField(
+                      label: 'Medicine Category',
                       value: medCategory.text,
                       items: medicineCategories,
-                      validator: medicineValidator,
-                      onChanged: (value) => medCategory.text = value!,
+                      validator: _requiredDropdownValidator,
+                      onChanged: (value) =>
+                          setState(() => medCategory.text = value!),
                     ),
-                  ),
-                  const SizedBox(height: 20),
+                  ],
+                ),
 
-                  // Notes
-                  SizedBox(
-                    width: 300,
-                    child: myTextField.buildTextField("Notes / Dosage", medNotes),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Quantity
-                  SizedBox(
-                    width: 300,
-                    child: TextFormField(
+                // ── Dosage & Quantity ────────────────────────────────────────
+                _sectionCard(
+                  title: 'Dosage & Quantity',
+                  icon: Icons.format_list_numbered,
+                  isDarkMode: isDarkMode,
+                  children: [
+                    TextFormField(
+                      controller: medNotes,
+                      style: TextStyle(
+                          color: isDarkMode ? Colors.white : Colors.black),
+                      maxLines: 2,
+                      decoration: _fieldDecoration(
+                        label: 'Notes / Dosage (optional)',
+                        isDarkMode: isDarkMode,
+                        prefixIcon: Icons.notes,
+                        hint: 'e.g. 500mg, twice daily after meals',
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextFormField(
                       controller: quantity,
                       keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      validator: _quantityValidator,
                       style: TextStyle(
-                        color: isDarkMode ? Colors.white : Colors.black,
+                          color: isDarkMode ? Colors.white : Colors.black),
+                      decoration: _fieldDecoration(
+                        label: 'Quantity',
+                        isDarkMode: isDarkMode,
+                        prefixIcon: Icons.inventory,
+                        hint: 'e.g. 30',
                       ),
-                      decoration: InputDecoration(
-                        labelText: "Quantity",
-                        labelStyle: TextStyle(
-                          color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        fillColor: isDarkMode ? const Color(0xFF2C2C2C) : AppColors.lightGray,
-                        filled: true,
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: isDarkMode ? const Color(0xFF3C3C3C) : const Color(0xFFC8D1DC),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: AppColors.primary,
-                            width: 2,
-                          ),
-                        ),
-                      ),
-                      validator: medicineValidator,
                     ),
-                  ),
-                  const SizedBox(height: 20),
+                  ],
+                ),
 
-                  // Expiry Date
-                  SizedBox(
-                    width: 300,
-                    child: ExpiryDatePicker(
+                // ── Expiry ───────────────────────────────────────────────────
+                _sectionCard(
+                  title: 'Expiry Date',
+                  icon: Icons.calendar_today_outlined,
+                  isDarkMode: isDarkMode,
+                  children: [
+                    ExpiryDatePicker(
                       controller: expDate,
-                      labelText: "Expiry Date",
+                      labelText: 'Select Expiry Date',
                       onDateChanged: (date) {
-                        expDate.text = "${date.day.toString().padLeft(2, '0')}-"
-                            "${date.month.toString().padLeft(2, '0')}-"
-                            "${date.year}";
+                        expDate.text =
+                            '${date.day.toString().padLeft(2, '0')}-'
+                            '${date.month.toString().padLeft(2, '0')}-'
+                            '${date.year}';
                       },
                     ),
-                  ),
-                  const SizedBox(height: 30),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Must be a future date.',
+                      style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                    ),
+                  ],
+                ),
 
-                  // Barcode Scanner - Simple compact design with loading indicator
-                  SizedBox(
-                    width: 300,
-                    child: Row(
+                // ── Barcode ──────────────────────────────────────────────────
+                _sectionCard(
+                  title: 'Barcode Scanner (optional)',
+                  icon: Icons.qr_code_scanner,
+                  isDarkMode: isDarkMode,
+                  children: [
+                    Row(
                       children: [
                         Expanded(
                           child: TextFormField(
                             controller: barcodeController,
                             readOnly: true,
                             style: TextStyle(
-                              color: isDarkMode ? Colors.white : Colors.black,
-                              fontSize: 13,
-                            ),
-                            decoration: InputDecoration(
-                              labelText: "Barcode (Auto-fill)",
-                              labelStyle: TextStyle(
-                                color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
-                              ),
-                              hintText: _isSearchingBarcode ? "Searching..." : "Scan to auto-fill",
-                              hintStyle: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              fillColor: isDarkMode ? const Color(0xFF2C2C2C) : AppColors.lightGray,
-                              filled: true,
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: isDarkMode ? const Color(0xFF3C3C3C) : const Color(0xFFC8D1DC),
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(
-                                  color: AppColors.primary,
-                                  width: 2,
-                                ),
-                              ),
-                              suffixIcon: barcodeController.text.isNotEmpty
+                                color: isDarkMode ? Colors.white : Colors.black,
+                                fontSize: 13),
+                            decoration: _fieldDecoration(
+                              label: 'Barcode',
+                              isDarkMode: isDarkMode,
+                              prefixIcon: Icons.qr_code,
+                              hint: _isSearchingBarcode
+                                  ? 'Searching...'
+                                  : 'Scan to auto-fill',
+                              suffix: barcodeController.text.isNotEmpty
                                   ? IconButton(
-                                icon: const Icon(Icons.close, size: 18),
-                                onPressed: () {
-                                  setState(() {
-                                    barcodeController.clear();
-                                  });
-                                },
-                              )
+                                      icon: const Icon(Icons.close, size: 18),
+                                      onPressed: () => setState(
+                                          () => barcodeController.clear()),
+                                    )
                                   : null,
                             ),
                           ),
                         ),
                         const SizedBox(width: 10),
-                        ElevatedButton(
-                          onPressed: _isSearchingBarcode ? null : _scanBarcode,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                        SizedBox(
+                          height: 54,
+                          child: ElevatedButton(
+                            onPressed:
+                                _isSearchingBarcode ? null : _scanBarcode,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 18),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
                             ),
+                            child: _isSearchingBarcode
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                        color: Colors.white, strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.qr_code_scanner, size: 22),
                           ),
-                          child: _isSearchingBarcode
-                              ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                              : const Icon(Icons.qr_code_scanner, size: 24),
                         ),
                       ],
                     ),
-                  ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Scan a barcode to auto-fill medicine name, type, and dosage.',
+                      style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                    ),
+                  ],
+                ),
 
-                  const SizedBox(height: 30),
+                // ── Photo ────────────────────────────────────────────────────
+                BlocBuilder<ImageBloc, ImageState>(
+                  builder: (context, imageState) {
+                    File? selectedImage;
+                    if (imageState is ImageSelected) {
+                      selectedImage = imageState.image;
+                    }
 
-                  // Photo Section - Smaller and compact
-                  BlocBuilder<ImageBloc, ImageState>(
-                    builder: (context, imageState) {
-                      File? selectedImage;
-                      if (imageState is ImageSelected) {
-                        selectedImage = imageState.image;
-                      }
-
-                      return SizedBox(
-                        width: 300,
-                        child: Column(
-                          children: [
-                            if (selectedImage != null) ...[
-                              Stack(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Image.file(
-                                      selectedImage,
-                                      height: 120,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
+                    return _sectionCard(
+                      title: 'Medicine Photo (optional)',
+                      icon: Icons.photo_camera_outlined,
+                      isDarkMode: isDarkMode,
+                      children: [
+                        if (selectedImage != null) ...[
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: Stack(
+                              children: [
+                                Image.file(
+                                  selectedImage,
+                                  height: 180,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                ),
+                                Positioned(
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          Colors.transparent,
+                                          Colors.black.withValues(alpha: 0.65),
+                                        ],
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        TextButton.icon(
+                                          onPressed: _pickImage,
+                                          icon: const Icon(
+                                              Icons.edit_outlined,
+                                              color: Colors.white,
+                                              size: 15),
+                                          label: const Text(
+                                            'Change',
+                                            style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w500),
+                                          ),
+                                          style: TextButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 10, vertical: 6),
+                                            minimumSize: Size.zero,
+                                            tapTargetSize:
+                                                MaterialTapTargetSize.shrinkWrap,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        TextButton.icon(
+                                          onPressed: () => context
+                                              .read<ImageBloc>()
+                                              .add(const RemoveImageEvent()),
+                                          icon: const Icon(
+                                              Icons.delete_outline,
+                                              color: Color(0xFFFF6B6B),
+                                              size: 15),
+                                          label: const Text(
+                                            'Remove',
+                                            style: TextStyle(
+                                                color: Color(0xFFFF6B6B),
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w500),
+                                          ),
+                                          style: TextButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 10, vertical: 6),
+                                            minimumSize: Size.zero,
+                                            tapTargetSize:
+                                                MaterialTapTargetSize.shrinkWrap,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  Positioned(
-                                    top: 4,
-                                    right: 4,
-                                    child: IconButton(
-                                      icon: const Icon(Icons.close, color: Colors.white, size: 18),
-                                      style: IconButton.styleFrom(
-                                        backgroundColor: Colors.red,
-                                        padding: const EdgeInsets.all(4),
-                                      ),
-                                      onPressed: () {
-                                        context.read<ImageBloc>().add(const RemoveImageEvent());
-                                      },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ] else ...[
+                          GestureDetector(
+                            onTap: _pickImage,
+                            child: Container(
+                              height: 140,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: isDarkMode
+                                      ? const Color(0xFF3C3C3C)
+                                      : AppColors.primary.withValues(alpha: 0.3),
+                                  width: 1.5,
+                                ),
+                                color: isDarkMode
+                                    ? const Color(0xFF2C2C2C)
+                                    : AppColors.primary.withValues(alpha: 0.04),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: AppColors.primary
+                                          .withValues(alpha: 0.12),
                                     ),
+                                    child: const Icon(
+                                        Icons.add_photo_alternate_outlined,
+                                        color: AppColors.primary,
+                                        size: 30),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    'Add Medicine Photo',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDarkMode
+                                          ? Colors.grey[300]
+                                          : AppColors.darkBlue,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Camera or gallery',
+                                    style: TextStyle(
+                                        fontSize: 12, color: Colors.grey[500]),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 8),
-                            ],
-                            OutlinedButton.icon(
-                              onPressed: _isProcessingOCR ? null : _pickImage,
-                              icon: _isProcessingOCR
-                                  ? const SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        ],
+                      ],
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 20),
+
+                // ── Submit ───────────────────────────────────────────────────
+                BlocBuilder<ImageBloc, ImageState>(
+                  builder: (context, imageState) {
+                    File? selectedImage;
+                    if (imageState is ImageSelected) {
+                      selectedImage = imageState.image;
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: ElevatedButton(
+                        onPressed: _isUploadingImage || _isSearchingBarcode
+                            ? null
+                            : () => submitMedicine(selectedImage),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          disabledBackgroundColor: Colors.grey[400],
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          elevation: 2,
+                        ),
+                        child: _isUploadingImage
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2),
                               )
-                                  : const Icon(Icons.camera_alt, size: 18),
-                              label: Text(
-                                selectedImage != null
-                                    ? (_isProcessingOCR ? 'Scanning...' : 'Change Photo')
-                                    : (_isProcessingOCR ? 'Scanning...' : 'Add Photo (OCR)'),
-                                style: const TextStyle(fontSize: 13),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.primary,
-                                side: const BorderSide(color: AppColors.primary),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                            : const Text(
+                                'Add Medicine',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
                                 ),
                               ),
-                            ),
-                            if (!_isProcessingOCR && selectedImage == null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(
-                                  'Photo extracts name, expiry & dosage',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.grey[600],
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 40),
-
-                  // Submit Button
-                  BlocBuilder<ImageBloc, ImageState>(
-                    builder: (context, imageState) {
-                      File? selectedImage;
-                      if (imageState is ImageSelected) {
-                        selectedImage = imageState.image;
-                      }
-
-                      return SizedBox(
-                        width: 300,
-                        child: ElevatedButton(
-                          onPressed: _isUploadingImage || _isProcessingOCR || _isSearchingBarcode
-                              ? null
-                              : () {
-                            submitMedicine(selectedImage);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: _isUploadingImage
-                              ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                              : const Text(
-                            'Add Medicine',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 30),
-                ],
-              ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 32),
+              ],
             ),
           ),
         ),
@@ -803,13 +772,12 @@ class _AddMedicineState extends State<AddMedicine> {
   }
 }
 
-// Barcode Scanner Screen
+// ── Barcode Scanner Screen ────────────────────────────────────────────────────
+
 class _BarcodeScannerScreen extends StatefulWidget {
   final Function(String barcode) onBarcodeScanned;
 
-  const _BarcodeScannerScreen({
-    required this.onBarcodeScanned,
-  });
+  const _BarcodeScannerScreen({required this.onBarcodeScanned});
 
   @override
   State<_BarcodeScannerScreen> createState() => _BarcodeScannerScreenState();
@@ -827,12 +795,9 @@ class _BarcodeScannerScreenState extends State<_BarcodeScannerScreen> {
 
   void _onBarcodeDetected(BarcodeCapture barcodeCapture) {
     if (!_isScanning) return;
-
     final barcode = barcodeCapture.barcodes.firstOrNull;
     if (barcode?.rawValue == null) return;
-
     setState(() => _isScanning = false);
-
     widget.onBarcodeScanned(barcode!.rawValue!);
     Navigator.pop(context, barcode.rawValue);
   }
@@ -843,6 +808,7 @@ class _BarcodeScannerScreenState extends State<_BarcodeScannerScreen> {
       appBar: AppBar(
         title: const Text('Scan Barcode'),
         backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
       ),
       body: Stack(
         children: [
@@ -858,12 +824,11 @@ class _BarcodeScannerScreenState extends State<_BarcodeScannerScreen> {
               padding: const EdgeInsets.all(20),
               color: Colors.black54,
               child: const Text(
-                'Point camera at medicine barcode',
+                'Point the camera at the medicine barcode',
                 style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -888,8 +853,11 @@ class _BarcodeScannerScreenState extends State<_BarcodeScannerScreen> {
                 backgroundColor: Colors.white,
                 foregroundColor: AppColors.primary,
                 padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Cancel'),
+              child: const Text('Cancel',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
             ),
           ),
         ],

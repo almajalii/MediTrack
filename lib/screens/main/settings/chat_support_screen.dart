@@ -87,15 +87,19 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
     }
 
     return Scaffold(
-      backgroundColor: isDarkMode ? const Color(0xFF121212) : Colors.grey[100],
+      backgroundColor: isDarkMode ? const Color(0xFF121212) : const Color(0xFFF5F7FA),
       appBar: AppBar(
         title: const Text('Chat Support'),
         centerTitle: true,
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: RadialGradient(
-              colors: [Color(0xFF1A3A6B), Color(0xFF00B9E4)],
-            ),
+          decoration: BoxDecoration(
+            gradient: isDarkMode
+                ? const LinearGradient(colors: [Color(0xFF1E1E1E), Color(0xFF2C2C2C)])
+                : const LinearGradient(
+                    colors: [AppColors.darkBlue, AppColors.primary],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
           ),
         ),
       ),
@@ -105,10 +109,20 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
-            color: Colors.blue[50],
+            decoration: BoxDecoration(
+              color: isDarkMode ? AppColors.primary.withValues(alpha: 0.08) : AppColors.primary.withValues(alpha: 0.09),
+              border: Border(bottom: BorderSide(color: AppColors.primary.withValues(alpha: 0.15))),
+            ),
             child: Row(
               children: [
-                Icon(Icons.support_agent, color: Colors.blue[700], size: 30),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.support_agent, color: AppColors.primary, size: 24),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -117,16 +131,16 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
                       Text(
                         'Customer Service',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue[900],
+                          color: isDarkMode ? Colors.white : AppColors.darkBlue,
                         ),
                       ),
                       Text(
                         'We\'re here to help!',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.blue[700],
+                          color: isDarkMode ? Colors.grey.shade400 : AppColors.indigoGray,
                         ),
                       ),
                     ],
@@ -158,17 +172,21 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.chat_bubble_outline,
-                          size: 80,
-                          color: Colors.grey[400],
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.08),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.chat_bubble_outline, size: 48, color: AppColors.primary),
                         ),
                         const SizedBox(height: 16),
                         Text(
                           'No messages yet',
                           style: TextStyle(
                             fontSize: 18,
-                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w600,
+                            color: isDarkMode ? Colors.white : AppColors.darkBlue,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -176,7 +194,7 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
                           'Start a conversation with our support team',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey[500],
+                            color: isDarkMode ? Colors.grey.shade500 : AppColors.indigoGray,
                           ),
                         ),
                       ],
@@ -231,10 +249,10 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
                             if (!isUserMessage)
                               Text(
                                 message.userName,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.blue[700],
+                                  color: AppColors.primary,
                                 ),
                               ),
                             if (!isUserMessage) const SizedBox(height: 4),
@@ -244,7 +262,7 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
                                 fontSize: 15,
                                 color: isUserMessage
                                     ? Colors.white
-                                    : (isDarkMode ? Colors.white : Colors.black87),
+                                    : (isDarkMode ? Colors.white : AppColors.darkBlue),
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -271,14 +289,8 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isDarkMode ? Colors.grey[900] : Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, -2),
-                ),
-              ],
+              color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+              border: Border(top: BorderSide(color: isDarkMode ? const Color(0xFF2C2C2C) : const Color(0xFFEEF0F5))),
             ),
             child: Row(
               children: [
@@ -292,7 +304,7 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      fillColor: isDarkMode ? Colors.grey[800] : Colors.grey[200],
+                      fillColor: isDarkMode ? const Color(0xFF2C2C2C) : const Color(0xFFEEF0F5),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 20,
                         vertical: 10,

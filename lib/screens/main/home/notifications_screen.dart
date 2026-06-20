@@ -167,10 +167,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
         ],
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: RadialGradient(
-              colors: [Color(0xFF1A3A6B), Color(0xFF00B9E4)],
-            ),
+          decoration: BoxDecoration(
+            gradient: isDarkMode
+                ? const LinearGradient(colors: [Color(0xFF1E1E1E), Color(0xFF2C2C2C)])
+                : const LinearGradient(
+                    colors: [AppColors.darkBlue, AppColors.primary],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
           ),
         ),
       ),

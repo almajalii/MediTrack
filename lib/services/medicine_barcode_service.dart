@@ -1,4 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -8,32 +9,26 @@ class MedicineBarcodeService {
   /// Search for medicine by barcode
   /// Returns medicine data if found, null otherwise
   Future<Map<String, dynamic>?> getMedicineByBarcode(String barcode) async {
-    print('🔍 Searching for barcode: $barcode');
+    try {
+      final firebaseResult = await _searchFirebase(barcode);
+      if (firebaseResult != null) return firebaseResult;
 
-    // Step 1: Check Firebase database first
-    final firebaseResult = await _searchFirebase(barcode);
-    if (firebaseResult != null) {
-      print('✅ Found in Firebase database!');
-      return firebaseResult;
+      final apiResult = await _searchOpenFoodFacts(barcode);
+      if (apiResult != null) {
+        await _saveBarcodeToFirebase(barcode, apiResult);
+        return apiResult;
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('MedicineBarcodeService: unexpected error for barcode $barcode: $e');
+      return null;
     }
-
-    // Step 2: Check Open Food Facts API
-    final apiResult = await _searchOpenFoodFacts(barcode);
-    if (apiResult != null) {
-      print('✅ Found in Open Food Facts API!');
-      // Save to Firebase for future use
-      await _saveBarcodeToFirebase(barcode, apiResult);
-      return apiResult;
-    }
-
-    print('❌ Barcode not found in any database');
-    return null;
   }
 
   /// Search Firebase for barcode
   Future<Map<String, dynamic>?> _searchFirebase(String barcode) async {
     try {
-      print('📱 Checking Firebase database...');
 
       final querySnapshot = await _firestore
           .collection('medicine_barcodes')
@@ -45,7 +40,6 @@ class MedicineBarcodeService {
         final doc = querySnapshot.docs.first;
         final data = doc.data();
 
-        print('✅ Firebase hit! Medicine: ${data['name']}');
 
         return {
           'name': data['name'] ?? '',
@@ -57,10 +51,8 @@ class MedicineBarcodeService {
         };
       }
 
-      print('❌ Not found in Firebase');
       return null;
     } catch (e) {
-      print('❌ Firebase search error: $e');
       return null;
     }
   }
@@ -68,10 +60,9 @@ class MedicineBarcodeService {
   /// Search Open Food Facts API
   Future<Map<String, dynamic>?> _searchOpenFoodFacts(String barcode) async {
     try {
-      print('🌐 Checking Open Food Facts API...');
 
       final url = Uri.parse('https://world.openfoodfacts.org/api/v0/product/$barcode.json');
-      final response = await http.get(url);
+      final response = await http.get(url).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -88,7 +79,6 @@ class MedicineBarcodeService {
               categories.contains('vitamin');
 
           if (isMedicine || product['product_name'] != null) {
-            print('✅ Open Food Facts hit! Product: ${product['product_name']}');
 
             return {
               'name': product['product_name'] ?? product['generic_name'] ?? 'Unknown',
@@ -102,10 +92,8 @@ class MedicineBarcodeService {
         }
       }
 
-      print('❌ Not found in Open Food Facts');
       return null;
     } catch (e) {
-      print('❌ Open Food Facts API error: $e');
       return null;
     }
   }
@@ -113,8 +101,6 @@ class MedicineBarcodeService {
   /// Save barcode data to Firebase for future use
   Future<void> _saveBarcodeToFirebase(String barcode, Map<String, dynamic> data) async {
     try {
-      print('💾 Saving barcode to Firebase...');
-
       await _firestore.collection('medicine_barcodes').add({
         'barcode': barcode,
         'name': data['name'],
@@ -125,10 +111,8 @@ class MedicineBarcodeService {
         'addedAt': FieldValue.serverTimestamp(),
         'source': data['source'],
       });
-
-      print('✅ Saved to Firebase successfully!');
     } catch (e) {
-      print('❌ Error saving to Firebase: $e');
+      debugPrint('MedicineBarcodeService: failed to cache barcode $barcode in Firebase: $e');
     }
   }
 
@@ -141,7 +125,6 @@ class MedicineBarcodeService {
     String? dosage,
   }) async {
     try {
-      print('💾 Saving user medicine barcode...');
 
       // Check if barcode already exists
       final existing = await _firestore
@@ -162,12 +145,9 @@ class MedicineBarcodeService {
           'source': 'user',
         });
 
-        print('✅ User medicine barcode saved!');
-      } else {
-        print('ℹ️ Barcode already exists in database');
       }
     } catch (e) {
-      print('❌ Error saving user barcode: $e');
+      debugPrint('MedicineBarcodeService: failed to save user barcode $barcode: $e');
     }
   }
 
@@ -225,7 +205,6 @@ class MedicineBarcodeService {
 
       return stats;
     } catch (e) {
-      print('Error getting stats: $e');
       return {'total': 0, 'user_added': 0, 'api_added': 0};
     }
   }

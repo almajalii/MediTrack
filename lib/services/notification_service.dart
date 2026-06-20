@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:meditrack/model/app_notification.dart';
 
 class NotificationService {
@@ -125,7 +125,7 @@ class NotificationService {
           if (daysUntilExpiry <= 7 && daysUntilExpiry >= 0) {
             await createNotification(
               userId: userId,
-              title: '⚠️ Medicine Expiring Soon',
+              title: 'âš ï¸ Medicine Expiring Soon',
               message: '$medicineName will expire in $daysUntilExpiry day${daysUntilExpiry == 1 ? '' : 's'}.',
               type: NotificationType.medicineExpiry,
               data: {'medicineId': medicineDoc.id, 'medicineName': medicineName},
@@ -135,7 +135,7 @@ class NotificationService {
           else if (daysUntilExpiry < 0) {
             await createNotification(
               userId: userId,
-              title: '🚫 Medicine Expired',
+              title: 'ðŸš« Medicine Expired',
               message: '$medicineName has expired. Please dispose of it safely.',
               type: NotificationType.medicineExpiry,
               data: {'medicineId': medicineDoc.id, 'medicineName': medicineName},
@@ -144,7 +144,6 @@ class NotificationService {
         }
       }
     } catch (e) {
-      print('Error checking expiring medicines: $e');
     }
   }
 
@@ -157,7 +156,7 @@ class NotificationService {
   }) async {
     await createNotification(
       userId: userId,
-      title: '💊 Time to Take Your Medicine',
+      title: 'ðŸ’Š Time to Take Your Medicine',
       message: 'Don\'t forget to take $dosage of $medicineName at $time',
       type: NotificationType.dosageReminder,
       data: {
@@ -176,7 +175,7 @@ class NotificationService {
   }) async {
     await createNotification(
       userId: userId,
-      title: '👨‍👩‍👧‍👦 New Family Member',
+      title: 'ðŸ‘¨â€ðŸ‘©â€ðŸ‘§â€ðŸ‘¦ New Family Member',
       message: '$memberName has joined $familyName family account.',
       type: NotificationType.familyUpdate,
     );
@@ -190,7 +189,7 @@ class NotificationService {
   }) async {
     await createNotification(
       userId: userId,
-      title: '📨 Family Invitation',
+      title: 'ðŸ“¨ Family Invitation',
       message: '$inviterName invited you to join $familyName family account.',
       type: NotificationType.familyUpdate,
     );
@@ -204,7 +203,7 @@ class NotificationService {
   }) async {
     await createNotification(
       userId: userId,
-      title: '📦 Low Medicine Stock',
+      title: 'ðŸ“¦ Low Medicine Stock',
       message: 'Only $quantity unit${quantity == 1 ? '' : 's'} of $medicineName remaining.',
       type: NotificationType.general,
       data: {'medicineName': medicineName, 'quantity': quantity},
@@ -216,7 +215,7 @@ class NotificationService {
     // Medicine expiry notification
     await createNotification(
       userId: userId,
-      title: '⚠️ Medicine Expiring Soon',
+      title: 'âš ï¸ Medicine Expiring Soon',
       message: 'Your Aspirin will expire in 3 days. Please check your medicine cabinet.',
       type: NotificationType.medicineExpiry,
       data: {'medicineId': 'sample_medicine_id'},
@@ -225,7 +224,7 @@ class NotificationService {
     // Dosage reminder
     await createNotification(
       userId: userId,
-      title: '💊 Time to Take Your Medicine',
+      title: 'ðŸ’Š Time to Take Your Medicine',
       message: 'Don\'t forget to take your evening dose of Paracetamol (500mg).',
       type: NotificationType.dosageReminder,
       data: {'dosageId': 'sample_dosage_id'},
@@ -234,7 +233,7 @@ class NotificationService {
     // Family update
     await createNotification(
       userId: userId,
-      title: '👨‍👩‍👧‍👦 Family Account Update',
+      title: 'ðŸ‘¨â€ðŸ‘©â€ðŸ‘§â€ðŸ‘¦ Family Account Update',
       message: 'Sarah has joined your family account.',
       type: NotificationType.familyUpdate,
     );
@@ -242,7 +241,7 @@ class NotificationService {
     // Low stock warning
     await createNotification(
       userId: userId,
-      title: '📦 Low Medicine Stock',
+      title: 'ðŸ“¦ Low Medicine Stock',
       message: 'Only 2 units of Ibuprofen remaining. Time to restock!',
       type: NotificationType.general,
     );
@@ -250,7 +249,7 @@ class NotificationService {
     // App update
     await createNotification(
       userId: userId,
-      title: '🔔 New Feature Available',
+      title: 'ðŸ”” New Feature Available',
       message: 'Check out the new Pharmacy Search feature to find nearby pharmacies!',
       type: NotificationType.appUpdate,
     );

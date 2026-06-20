@@ -37,11 +37,24 @@ class _WelcomeScreenState extends State<WelcomeScreen> with AutomaticKeepAliveCl
     }
   }
 
+  // Reload medicines (and therefore dosages) every time the tab becomes visible.
+  @override
+  void didPopNext() {
+    _loadData();
+  }
+
   void _loadData() {
     if (user != null) {
       context.read<MedicineBloc>().add(LoadMedicinesEvent(user!.uid));
       context.read<FamilyBloc>().add(LoadFamilyAccountEvent(user!.uid));
     }
+  }
+
+  String _formattedDate() {
+    final now = DateTime.now();
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+    return '${days[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}';
   }
 
   String getGreeting() {
@@ -62,52 +75,95 @@ class _WelcomeScreenState extends State<WelcomeScreen> with AutomaticKeepAliveCl
     }
 
     return Scaffold(
-      backgroundColor: isDarkMode ? const Color(0xFF121212) : Colors.white,
+      backgroundColor: isDarkMode ? const Color(0xFF121212) : const Color(0xFFF5F7FA),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Greeting
-            Text.rich(
-              TextSpan(
+            // Hero greeting card
+            Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppColors.primary, Color(0xFF007FA8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.all(Radius.circular(20)),
+              ),
+              padding: const EdgeInsets.all(20),
+              child: Row(
                 children: [
-                  TextSpan(
-                    text: '${getGreeting()}, ',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: isDarkMode ? Colors.grey.shade300 : AppColors.darkBlue,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          getGreeting(),
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          user?.displayName ?? 'User',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _formattedDate(),
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  TextSpan(
-                    text: '${user?.displayName ?? 'User'}!',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: AppColors.primary,
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
                     ),
+                    child: const Icon(Icons.person_outline, color: Colors.white, size: 26),
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 22),
 
-            // Section 1: Medicines To Take Today
+            // Section 1: Today's Schedule
             Row(
               children: [
-                Icon(
-                  Icons.medication,
-                  color: isDarkMode ? AppColors.primary.withOpacity(0.8) : AppColors.primary,
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.medication, color: AppColors.primary, size: 18),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Text(
-                  'Medicines To Take Today:',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  "Today's Schedule",
+                  style: TextStyle(
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: isDarkMode ? Colors.grey.shade300 : Colors.black87,
+                    color: isDarkMode ? Colors.white : AppColors.darkBlue,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
 
             // Dosage Cards
             BlocBuilder<MedicineBloc, MedicineState>(
@@ -185,14 +241,17 @@ class _WelcomeScreenState extends State<WelcomeScreen> with AutomaticKeepAliveCl
 
                       if (dosageState is DosageLoadedState) {
                         final allByMed = dosageState.dosagesByMedicine;
-                        final today = DateTime.now();
+                        final now = DateTime.now();
+                        final today = DateTime(now.year, now.month, now.day);
                         final dosageWidgets = <Widget>[];
 
                         for (var med in medicines) {
                           final medDosages = allByMed[med.id] ?? [];
                           final todayDosages = medDosages.where((d) {
-                            final start = d.startDate;
-                            final end = d.endDate;
+                            final start = DateTime(d.startDate.year, d.startDate.month, d.startDate.day);
+                            final end = d.endDate != null
+                                ? DateTime(d.endDate!.year, d.endDate!.month, d.endDate!.day)
+                                : null;
                             return !start.isAfter(today) && (end == null || !end.isBefore(today));
                           }).toList();
 
@@ -200,13 +259,28 @@ class _WelcomeScreenState extends State<WelcomeScreen> with AutomaticKeepAliveCl
 
                           dosageWidgets.add(
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                              child: Text(
-                                med.name.toUpperCase(),
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: isDarkMode ? Colors.grey.shade300 : AppColors.darkBlue,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              padding: const EdgeInsets.only(top: 12, bottom: 4),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 4,
+                                    height: 18,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary,
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    med.name,
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDarkMode ? Colors.white : AppColors.darkBlue,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           );
@@ -293,13 +367,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> with AutomaticKeepAliveCl
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
-                                Colors.red.withOpacity(0.1),
-                                Colors.orange.withOpacity(0.05),
+                                Colors.red.withValues(alpha: 0.1),
+                                Colors.orange.withValues(alpha: 0.05),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Colors.red.withOpacity(0.3),
+                              color: Colors.red.withValues(alpha: 0.3),
                               width: 2,
                             ),
                           ),
@@ -310,7 +384,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with AutomaticKeepAliveCl
                                   Container(
                                     padding: const EdgeInsets.all(10),
                                     decoration: BoxDecoration(
-                                      color: Colors.red.withOpacity(0.15),
+                                      color: Colors.red.withValues(alpha: 0.15),
                                       shape: BoxShape.circle,
                                     ),
                                     child: Text(
@@ -338,7 +412,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with AutomaticKeepAliveCl
                                 ],
                               ),
                               const SizedBox(height: 12),
-                              ...expiredMedicines.map((med) {
+                              ...expiredMedicines.map<Widget>((med) {
                                 final daysExpired = now.difference(med.dateExpired).inDays;
                                 return Container(
                                   margin: const EdgeInsets.only(top: 8),
@@ -347,7 +421,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with AutomaticKeepAliveCl
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(
-                                      color: Colors.red.withOpacity(0.2),
+                                      color: Colors.red.withValues(alpha: 0.2),
                                     ),
                                   ),
                                   child: Row(
@@ -415,24 +489,65 @@ class _WelcomeScreenState extends State<WelcomeScreen> with AutomaticKeepAliveCl
   Widget _buildDosageCard(String medId, Dosage dosage, bool isDarkMode) {
     final today = DateTime.now();
 
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-      color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 4,
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 5),
+      decoration: BoxDecoration(
+        color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: isDarkMode ? Colors.black26 : Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(
+          color: isDarkMode ? const Color(0xFF2C2C2C) : const Color(0xFFEEF0F5),
+        ),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Dosage: ${dosage.dosage}, Frequency: ${dosage.frequency}',
-              style: TextStyle(
-                color: isDarkMode ? Colors.grey.shade300 : Colors.black87,
-              ),
+            // Dosage header row
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.medication, color: AppColors.primary, size: 18),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        dosage.dosage,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          color: isDarkMode ? Colors.white : AppColors.darkBlue,
+                        ),
+                      ),
+                      Text(
+                        dosage.frequency,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDarkMode ? Colors.grey.shade400 : AppColors.indigoGray,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 10),
-            ...List.generate(dosage.times.length, (index) {
+            const SizedBox(height: 12),
+            ...List<Widget>.generate(dosage.times.length, (index) {
               final timeData = dosage.times[index];
               final time = timeData['time'];
 
@@ -449,23 +564,23 @@ class _WelcomeScreenState extends State<WelcomeScreen> with AutomaticKeepAliveCl
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
                   color: isTakenToday
-                      ? Colors.green.withOpacity(0.1)
-                      : (isDarkMode ? const Color(0xFF2C2C2C) : Colors.grey.shade100),
-                  borderRadius: BorderRadius.circular(8),
+                      ? AppColors.primary.withValues(alpha: 0.08)
+                      : (isDarkMode ? const Color(0xFF2A2A2A) : Colors.white),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: isTakenToday
-                        ? Colors.green
-                        : (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300),
+                        ? AppColors.primary.withValues(alpha: 0.35)
+                        : (isDarkMode ? const Color(0xFF3C3C3C) : const Color(0xFFDDE3EE)),
                   ),
                 ),
                 child: Row(
                   children: [
                     Icon(
                       isTakenToday ? Icons.check_circle : Icons.access_time,
-                      color: isTakenToday ? Colors.green : AppColors.primary,
+                      color: AppColors.primary,
                       size: 20,
                     ),
                     const SizedBox(width: 12),
@@ -473,9 +588,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> with AutomaticKeepAliveCl
                       child: Text(
                         time,
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: isDarkMode ? Colors.grey.shade300 : Colors.black87,
+                          color: isDarkMode ? Colors.grey.shade200 : AppColors.darkBlue,
                         ),
                       ),
                     ),
@@ -483,43 +598,36 @@ class _WelcomeScreenState extends State<WelcomeScreen> with AutomaticKeepAliveCl
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.2),
+                          color: AppColors.primary.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Text(
                           'Taken',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.green,
+                            color: AppColors.primary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       )
                     else
-                    // Mark as Taken button
                       InkWell(
                         onTap: () => _markAsTaken(medId, dosage, index),
+                        borderRadius: BorderRadius.circular(10),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppColors.primary,
-                              width: 1.5,
-                            ),
+                            color: AppColors.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.primary, width: 1.5),
                           ),
-                          child: Row(
+                          child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
-                                Icons.check_circle_outline,
-                                size: 16,
-                                color: AppColors.primary,
-                              ),
-                              const SizedBox(width: 4),
+                              Icon(Icons.check_circle_outline, size: 14, color: AppColors.primary),
+                              SizedBox(width: 4),
                               Text(
-                                'Mark as Taken',
+                                'Take',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: AppColors.primary,
@@ -533,7 +641,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with AutomaticKeepAliveCl
                   ],
                 ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),

@@ -14,6 +14,7 @@ class FamilyRepository {
   Future<FamilyAccount> createFamilyAccount({
     required String userId,
     required String familyName,
+    required String displayName,
     required String primaryContactEmail,
     String? primaryContactPhone,
   }) async {
@@ -35,7 +36,7 @@ class FamilyRepository {
         .add({
       'familyAccountId': familyRef.id,
       'userId': userId,
-      'displayName': '', // Will be updated from user profile
+      'displayName': displayName,
       'email': primaryContactEmail,
       'phoneNumber': primaryContactPhone,
       'role': MemberRole.owner.name,

@@ -57,9 +57,10 @@ class MarkDosageTimeTakenEvent extends DosageEvent {
   final String medId;
   final String dosageId;
   final int timeIndex;//which time in the list
+  final String dosageString; // e.g. "2 tablets", "500mg"
 
-  MarkDosageTimeTakenEvent(this.userId, this.medId, this.dosageId, this.timeIndex);
+  MarkDosageTimeTakenEvent(this.userId, this.medId, this.dosageId, this.timeIndex, this.dosageString);
 
   @override
-  List<Object> get props => [userId, medId, dosageId, timeIndex];
+  List<Object> get props => [userId, medId, dosageId, timeIndex, dosageString];
 }

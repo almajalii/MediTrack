@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -48,7 +48,6 @@ class ExpiryReminder {
 
           return expiryDate.isBefore(today);
         } catch (e) {
-          print('Error parsing expiry date for ${data['name']}: $e');
           return false;
         }
       }).toList();
@@ -163,7 +162,6 @@ class ExpiryReminder {
                         expiryStr = expiryData;
                       }
                     } catch (e) {
-                      print('Error formatting date: $e');
                     }
 
                     return Card(
@@ -235,7 +233,6 @@ class ExpiryReminder {
         },
       );
     } catch (e) {
-      print('Error loading expired medicines: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

@@ -13,18 +13,20 @@ abstract class FamilyEvent extends Equatable {
 class CreateFamilyAccountEvent extends FamilyEvent {
   final String userId;
   final String familyName;
+  final String displayName;
   final String primaryContactEmail;
   final String? primaryContactPhone;
 
   const CreateFamilyAccountEvent({
     required this.userId,
     required this.familyName,
+    required this.displayName,
     required this.primaryContactEmail,
     this.primaryContactPhone,
   });
 
   @override
-  List<Object?> get props => [userId, familyName, primaryContactEmail, primaryContactPhone];
+  List<Object?> get props => [userId, familyName, displayName, primaryContactEmail, primaryContactPhone];
 }
 
 // Load family account for a user

@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:meditrack/model/app_notification.dart';
 import 'package:meditrack/services/notification_service.dart';
 
@@ -17,7 +17,6 @@ class FamilyDosageNotificationService {
     String? patientUserId,
   }) async {
     try {
-      print('📤 Sending dosage reminder to ${familyMemberIds.length} family members...');
 
       for (String memberId in familyMemberIds) {
         // Get family member details
@@ -39,7 +38,7 @@ class FamilyDosageNotificationService {
         // Create notification for this family member
         await _notificationService.createNotification(
           userId: memberUserId,
-          title: '💊 Dosage Reminder for $patientName',
+          title: 'ðŸ’Š Dosage Reminder for $patientName',
           message: '$patientName needs to take $dosage of $medicineName at $time',
           type: NotificationType.dosageReminder,
           data: {
@@ -52,12 +51,9 @@ class FamilyDosageNotificationService {
           },
         );
 
-        print('✅ Notification sent to family member: ${memberData?['displayName']}');
       }
 
-      print('✅ All notifications sent successfully!');
     } catch (e) {
-      print('❌ Error sending family notifications: $e');
       throw Exception('Failed to send family notifications: $e');
     }
   }
@@ -73,7 +69,6 @@ class FamilyDosageNotificationService {
     String? patientUserId,
   }) async {
     try {
-      print('📤 Sending "dosage taken" notification to family...');
 
       for (String memberId in familyMemberIds) {
         final memberSnapshot = await _firestore
@@ -92,7 +87,7 @@ class FamilyDosageNotificationService {
 
         await _notificationService.createNotification(
           userId: memberUserId,
-          title: '✅ Dosage Taken - $patientName',
+          title: 'âœ… Dosage Taken - $patientName',
           message: '$patientName has taken $dosage of $medicineName at $time',
           type: NotificationType.dosageReminder,
           data: {
@@ -107,9 +102,7 @@ class FamilyDosageNotificationService {
         );
       }
 
-      print('✅ "Dosage taken" notifications sent!');
     } catch (e) {
-      print('❌ Error sending dosage taken notifications: $e');
     }
   }
 
@@ -124,7 +117,6 @@ class FamilyDosageNotificationService {
     String? patientUserId,
   }) async {
     try {
-      print('📤 Notifying family about new dosage schedule...');
 
       for (String memberId in familyMemberIds) {
         final memberSnapshot = await _firestore
@@ -143,7 +135,7 @@ class FamilyDosageNotificationService {
 
         await _notificationService.createNotification(
           userId: memberUserId,
-          title: '🔔 New Medication Schedule - $patientName',
+          title: 'ðŸ”” New Medication Schedule - $patientName',
           message: '$patientName started taking $dosage of $medicineName - $frequency',
           type: NotificationType.familyUpdate,
           data: {
@@ -157,9 +149,7 @@ class FamilyDosageNotificationService {
         );
       }
 
-      print('✅ New dosage schedule notifications sent!');
     } catch (e) {
-      print('❌ Error sending new schedule notifications: $e');
     }
   }
 

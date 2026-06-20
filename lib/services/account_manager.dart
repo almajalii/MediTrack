@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -125,7 +125,6 @@ class AccountManager {
 
       return true;
     } catch (e) {
-      print('Error switching account: $e');
       return false;
     }
   }

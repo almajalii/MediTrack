@@ -31,18 +31,21 @@ class FamilyMembersWidget extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Icon(
-                        Icons.family_restroom,
-                        color: isDarkMode
-                            ? AppColors.primary.withValues(alpha: 0.8)
-                            : AppColors.primary,
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.family_restroom, color: AppColors.primary, size: 18),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
                       Text(
                         'Family Members',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: TextStyle(
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: isDarkMode ? Colors.grey[300] : Colors.black87,
+                          color: isDarkMode ? Colors.white : AppColors.darkBlue,
                         ),
                       ),
                     ],
@@ -81,132 +84,143 @@ class FamilyMembersWidget extends StatelessWidget {
             ],
           );
         } else if (state is NoFamilyAccountState) {
-          // Show option to create family account or join existing
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-              Card(
-                color: isDarkMode ? Color(0xFF1E1E1E) : Colors.white,
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.family_restroom,
-                        color: AppColors.primary,
-                        size: 40,
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Create Family Account',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: isDarkMode ? Colors.grey[300] : Colors.black87,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Share medicine tracking with family',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          Icons.add_circle,
-                          color: AppColors.primary,
-                          size: 32,
-                        ),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ManageFamilyScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.family_restroom, color: AppColors.primary, size: 18),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Family',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isDarkMode ? Colors.white : AppColors.darkBlue,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              // Join existing family button
-              Card(
-                color: isDarkMode ? Color(0xFF1E1E1E) : Colors.white,
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: AppColors.primary.withValues(alpha: 0.3),
-                    width: 1,
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isDarkMode
+                        ? Colors.grey.shade800
+                        : AppColors.primary.withValues(alpha: 0.15),
                   ),
                 ),
-                child: InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => AcceptInvitationScreen(),
-                      ),
-                    );
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
+                child: Column(
+                  children: [
+                    Row(
                       children: [
-                        Icon(
-                          Icons.group_add,
-                          color: AppColors.primary,
-                          size: 32,
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: isDarkMode ? 0.15 : 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.people_alt_outlined,
+                            size: 26,
+                            color: AppColors.primary,
+                          ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Join Existing Family',
+                                'Connect with Family',
                                 style: TextStyle(
+                                  fontSize: 14,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: isDarkMode ? Colors.grey[300] : Colors.black87,
+                                  color: isDarkMode ? Colors.grey[200] : Colors.black87,
                                 ),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 3),
                               Text(
-                                'Have an invitation code? Join here',
+                                'Track medicines together',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                                  color: isDarkMode ? Colors.grey[500] : AppColors.indigoGray,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        Icon(
-                          Icons.arrow_forward_ios,
-                          color: AppColors.primary,
-                          size: 16,
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => ManageFamilyScreen()),
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 7),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              alignment: Alignment.center,
+                              child: const Text(
+                                'Create Group',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => AcceptInvitationScreen()),
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 7),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: AppColors.primary.withValues(alpha: 0.6),
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                'Join with Code',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                  ),
+                  ],
                 ),
               ),
             ],
@@ -231,13 +245,13 @@ class FamilyMembersWidget extends StatelessWidget {
             radius: 22,
             backgroundColor: isOwner
                 ? AppColors.primary
-                : (isDarkMode ? Colors.grey[700] : Colors.grey[300]),
+                : AppColors.primary.withValues(alpha: 0.12),
             child: Text(
               member.displayName.isNotEmpty
                   ? member.displayName[0].toUpperCase()
                   : 'U',
               style: TextStyle(
-                color: isOwner ? Colors.white : (isDarkMode ? Colors.white : Colors.black87),
+                color: isOwner ? Colors.white : AppColors.primary,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),

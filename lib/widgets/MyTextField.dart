@@ -8,6 +8,8 @@ class MyTextField {
         IconData? prefixIcon,
         String? Function(String?)? validator,
         bool obscureText = false,
+        String? errorText,
+        void Function(String)? onChanged,
       }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -19,11 +21,13 @@ class MyTextField {
               controller: controller,
               obscureText: obscureText,
               validator: validator,
+              onChanged: onChanged,
               style: TextStyle(
                 color: isDarkMode ? Colors.white : Colors.black,
               ),
               decoration: InputDecoration(
                 labelText: label,
+                errorText: errorText,
                 labelStyle: TextStyle(
                   color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
                 ),

@@ -33,8 +33,10 @@ dependencies:
   http: ^1.1.0
   mobile_scanner: ^5.2.3              # Barcode scanning
   google_mlkit_text_recognition: ^0.13.1  # OCR (text extraction)
+  formz: ^0.7.0
 
 dev_dependencies:
+  fake_cloud_firestore: ^2.4.5
   flutter_lints: ^5.0.0
   flutter_test:
     sdk: flutter

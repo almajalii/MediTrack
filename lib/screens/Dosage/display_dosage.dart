@@ -29,7 +29,7 @@ class _DisplayDosageState extends State<DisplayDosage> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDarkMode ? const Color(0xFF121212) : Colors.white,
+      backgroundColor: isDarkMode ? const Color(0xFF121212) : const Color(0xFFF5F7FA),
       body: BlocBuilder<MedicineBloc, MedicineState>(
         builder: (context, medState) {
           if (medState is MedicineLoadingState) {
@@ -143,29 +143,82 @@ class _DisplayDosageState extends State<DisplayDosage> {
                     );
                   }
 
-                  return ListView(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    children: medicines.map((med) {
-                      final medDosages = allDosages[med.id] ?? [];
-                      if (medDosages.isEmpty) return const SizedBox.shrink();
+                  final totalDosages = allDosages.values
+                      .fold<int>(0, (sum, list) => sum + list.length);
 
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            child: Text(
-                              med.name.toUpperCase(),
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  return ListView(
+                    padding: const EdgeInsets.only(top: 8, bottom: 24),
+                    children: [
+                      // Header
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+                        child: Row(
+                          children: [
+                            Text(
+                              'My Dosages',
+                              style: TextStyle(
+                                fontSize: 20,
                                 fontWeight: FontWeight.bold,
-                                color: isDarkMode ? Colors.grey[200] : AppColors.darkBlue,
+                                color: isDarkMode ? Colors.white : AppColors.darkBlue,
                               ),
                             ),
-                          ),
-                          ...medDosages.map((d) => DosageCard(dosage: d, medId: med.id)),
-                        ],
-                      );
-                    }).toList(),
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                '$totalDosages schedule${totalDosages == 1 ? '' : 's'}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      ...medicines.map((med) {
+                        final medDosages = allDosages[med.id] ?? [];
+                        if (medDosages.isEmpty) return const SizedBox.shrink();
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 4,
+                                    height: 18,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary,
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    med.name,
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDarkMode ? Colors.white : AppColors.darkBlue,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            ...medDosages.map((d) => DosageCard(dosage: d, medId: med.id)),
+                          ],
+                        );
+                      }),
+                    ],
                   );
                 }
 

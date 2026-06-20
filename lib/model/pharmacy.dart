@@ -5,7 +5,7 @@ class Pharmacy {
   final double latitude;
   final double longitude;
   final double? rating;
-  final bool isOpen;
+  final bool? isOpen;
   final String? phoneNumber;
   final double? distance; // in kilometers
 
@@ -16,7 +16,7 @@ class Pharmacy {
     required this.latitude,
     required this.longitude,
     this.rating,
-    required this.isOpen,
+    this.isOpen,
     this.phoneNumber,
     this.distance,
   });

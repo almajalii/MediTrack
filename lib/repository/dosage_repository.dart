@@ -2,7 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:meditrack/model/dosage.dart';
 
 class DosageRepository {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _firestore;
+
+  DosageRepository({FirebaseFirestore? firestore})
+      : _firestore = firestore ?? FirebaseFirestore.instance;
 
   //1 GetDosages (Fetches all dosages for a specific medicine once.)
   //when the app needs a snapshot of dosages at a moment in time,

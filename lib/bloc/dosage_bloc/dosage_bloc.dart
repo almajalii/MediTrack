@@ -1,4 +1,4 @@
-import 'package:flutter_bloc/flutter_bloc.dart';
+﻿import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meditrack/model/dosage.dart';
 import 'package:meditrack/repository/dosage_repository.dart';
@@ -71,7 +71,6 @@ class DosageBloc extends Bloc<DosageEvent, DosageState> {
         final familyMemberIds = List<String>.from(event.dosageData['selectedFamilyMemberIds'] ?? []);
 
         if (familyMemberIds.isNotEmpty) {
-          print('🔔 Family notifications enabled for this dosage');
 
           // Get family account
           final familyAccount = await familyRepository.getFamilyAccountForUser(event.userId);
@@ -95,12 +94,10 @@ class DosageBloc extends Bloc<DosageEvent, DosageState> {
               patientUserId: event.userId,
             );
 
-            print('✅ Family notifications sent for new dosage schedule');
           }
         }
       }
     } catch (e) {
-      print('❌ Error in _addDosage: $e');
       emit(DosageErrorState(e.toString()));
     }
   }
@@ -147,8 +144,9 @@ class DosageBloc extends Bloc<DosageEvent, DosageState> {
       // Get updated dosages
       final updatedDosages = await dosageRepository.getDosages(event.userId, event.medId);
 
-      // Decrement medicine quantity
-      await medicineRepository.decrementMedicineQuantity(event.userId, event.medId);
+      // Decrement medicine quantity by the actual dosage amount
+      final amount = MedicineRepository.parseDosageAmount(event.dosageString);
+      await medicineRepository.decrementMedicineQuantity(event.userId, event.medId, amount: amount);
 
       final currentState = state;
       Map<String, List<Dosage>> updated = {};
@@ -161,7 +159,6 @@ class DosageBloc extends Bloc<DosageEvent, DosageState> {
       final dosage = updatedDosages.firstWhere((d) => d.id == event.dosageId);
 
       if (dosage.notifyFamilyMembers && dosage.selectedFamilyMemberIds.isNotEmpty) {
-        print('🔔 Notifying family that dosage was taken');
 
         final familyAccount = await familyRepository.getFamilyAccountForUser(event.userId);
 
@@ -181,11 +178,9 @@ class DosageBloc extends Bloc<DosageEvent, DosageState> {
             patientUserId: event.userId,
           );
 
-          print('✅ Family notified about dosage taken');
         }
       }
     } catch (e) {
-      print('❌ Error in _onMarkDosageTimeTaken: $e');
       emit(DosageErrorState(e.toString()));
     }
   }

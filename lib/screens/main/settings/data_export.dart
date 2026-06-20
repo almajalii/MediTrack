@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -28,13 +28,9 @@ class _DataExportScreenState extends State<DataExportScreen> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return {};
 
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       return userDoc.data() ?? {};
     } catch (e) {
-      print('Error getting user data: $e');
       return {};
     }
   }
@@ -76,28 +72,18 @@ class _DataExportScreenState extends State<DataExportScreen> {
                 // Header
                 pw.Container(
                   padding: const pw.EdgeInsets.all(20),
-                  decoration: pw.BoxDecoration(
-                    color: PdfColors.blue900,
-                    borderRadius: pw.BorderRadius.circular(10),
-                  ),
+                  decoration: pw.BoxDecoration(color: PdfColors.blue900, borderRadius: pw.BorderRadius.circular(10)),
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
                         'MediTrack',
-                        style: pw.TextStyle(
-                          fontSize: 32,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.white,
-                        ),
+                        style: pw.TextStyle(fontSize: 32, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
                       ),
                       pw.SizedBox(height: 8),
                       pw.Text(
                         'Personal Medical Data Export',
-                        style: const pw.TextStyle(
-                          fontSize: 16,
-                          color: PdfColors.white,
-                        ),
+                        style: const pw.TextStyle(fontSize: 16, color: PdfColors.white),
                       ),
                     ],
                   ),
@@ -106,13 +92,7 @@ class _DataExportScreenState extends State<DataExportScreen> {
                 pw.SizedBox(height: 30),
 
                 // User Information
-                pw.Text(
-                  'User Information',
-                  style: pw.TextStyle(
-                    fontSize: 24,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                ),
+                pw.Text('User Information', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 10),
                 pw.Divider(thickness: 2),
                 pw.SizedBox(height: 10),
@@ -127,13 +107,7 @@ class _DataExportScreenState extends State<DataExportScreen> {
                 pw.SizedBox(height: 30),
 
                 // Export Info
-                pw.Text(
-                  'Export Information',
-                  style: pw.TextStyle(
-                    fontSize: 16,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                ),
+                pw.Text('Export Information', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 5),
                 _buildPdfInfoRow('Exported On', DateTime.now().toString().split('.')[0]),
                 _buildPdfInfoRow('Total Medicines', medicines.length.toString()),
@@ -152,13 +126,7 @@ class _DataExportScreenState extends State<DataExportScreen> {
               return pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text(
-                    'Medicine Inventory',
-                    style: pw.TextStyle(
-                      fontSize: 24,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
-                  ),
+                  pw.Text('Medicine Inventory', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
                   pw.SizedBox(height: 10),
                   pw.Divider(thickness: 2),
                   pw.SizedBox(height: 15),
@@ -166,20 +134,20 @@ class _DataExportScreenState extends State<DataExportScreen> {
                   // Medicines table
                   pw.Table.fromTextArray(
                     headers: ['Name', 'Type', 'Category', 'Qty', 'Expires'],
-                    data: medicines.map((med) => [
-                      med.name,
-                      med.type,
-                      med.category,
-                      med.quantity.toString(),
-                      '${med.dateExpired.month}/${med.dateExpired.day}/${med.dateExpired.year}',
-                    ]).toList(),
-                    headerStyle: pw.TextStyle(
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.white,
-                    ),
-                    headerDecoration: const pw.BoxDecoration(
-                      color: PdfColors.blue900,
-                    ),
+                    data:
+                        medicines
+                            .map(
+                              (med) => [
+                                med.name,
+                                med.type,
+                                med.category,
+                                med.quantity.toString(),
+                                '${med.dateExpired.month}/${med.dateExpired.day}/${med.dateExpired.year}',
+                              ],
+                            )
+                            .toList(),
+                    headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+                    headerDecoration: const pw.BoxDecoration(color: PdfColors.blue900),
                     cellAlignment: pw.Alignment.centerLeft,
                     cellPadding: const pw.EdgeInsets.all(8),
                   ),
@@ -228,54 +196,29 @@ class _DataExportScreenState extends State<DataExportScreen> {
   void _showSuccessDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.check_circle, color: AppColors.primary, size: 24),
-            const SizedBox(width: 8),
-            const Text('Export Complete!'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Your PDF has been created successfully!'),
-            const SizedBox(height: 16),
-            Text(
-              'File: $_fileName',
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-              ),
+      builder:
+          (context) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.check_circle, color: AppColors.primary, size: 24),
+                const SizedBox(width: 8),
+                const Text('Export Complete!'),
+              ],
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'The PDF is saved in your app storage.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Your PDF has been created successfully!'),
+                const SizedBox(height: 16),
+                Text('File: $_fileName', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                const Text('The PDF is saved in your app storage.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
           ),
-        ],
-      ),
     );
-  }
-
-  void _copyPathToClipboard() {
-    if (_savedFilePath.isNotEmpty) {
-      Clipboard.setData(ClipboardData(text: _savedFilePath));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('File path copied!'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
   }
 
   Future<void> _sharePDF() async {
@@ -283,39 +226,35 @@ class _DataExportScreenState extends State<DataExportScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.check_circle, color: AppColors.primary),
-            const SizedBox(width: 8),
-            const Text('Success!'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.description, size: 64, color: AppColors.primary),
-            const SizedBox(height: 16),
-            Text(
-              'PDF Created: $_fileName',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
+      builder:
+          (context) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.check_circle, color: AppColors.primary),
+                const SizedBox(width: 8),
+                const Text('Success!'),
+              ],
             ),
-            const SizedBox(height: 12),
-            const Text(
-              'Your medical data has been exported and saved securely.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.description, size: 64, color: AppColors.primary),
+                const SizedBox(height: 16),
+                Text(
+                  'PDF Created: $_fileName',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Your medical data has been exported and saved securely.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13),
+                ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Done'),
+            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Done'))],
           ),
-        ],
-      ),
     );
   }
 
@@ -325,16 +264,8 @@ class _DataExportScreenState extends State<DataExportScreen> {
       child: pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.SizedBox(
-            width: 150,
-            child: pw.Text(
-              '$label:',
-              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-            ),
-          ),
-          pw.Expanded(
-            child: pw.Text(value),
-          ),
+          pw.SizedBox(width: 150, child: pw.Text('$label:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+          pw.Expanded(child: pw.Text(value)),
         ],
       ),
     );
@@ -345,15 +276,19 @@ class _DataExportScreenState extends State<DataExportScreen> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDarkMode ? const Color(0xFF121212) : Colors.white,
+      backgroundColor: isDarkMode ? const Color(0xFF121212) : const Color(0xFFF5F7FA),
       appBar: AppBar(
         title: const Text('Export Data'),
         centerTitle: true,
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: RadialGradient(
-              colors: [Color(0xFF1A3A6B), Color(0xFF00B9E4)],
-            ),
+          decoration: BoxDecoration(
+            gradient: isDarkMode
+                ? const LinearGradient(colors: [Color(0xFF1E1E1E), Color(0xFF2C2C2C)])
+                : const LinearGradient(
+                    colors: [AppColors.darkBlue, AppColors.primary],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
           ),
         ),
       ),
@@ -366,19 +301,20 @@ class _DataExportScreenState extends State<DataExportScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppColors.primary.withOpacity(0.3),
-                ),
+                color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDarkMode ? Colors.black26 : Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+                border: Border.all(color: isDarkMode ? const Color(0xFF2C2C2C) : const Color(0xFFEEF0F5)),
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.picture_as_pdf,
-                    color: AppColors.primary,
-                    size: 32,
-                  ),
+                  Icon(Icons.picture_as_pdf, color: AppColors.primary, size: 32),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
@@ -389,16 +325,13 @@ class _DataExportScreenState extends State<DataExportScreen> {
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: isDarkMode ? Colors.grey[300] : Colors.black87,
+                            color: isDarkMode ? Colors.white : AppColors.darkBlue,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           'Download your medical data',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: isDarkMode ? Colors.grey[500] : Colors.grey[600],
-                          ),
+                          style: TextStyle(fontSize: 13, color: isDarkMode ? Colors.grey.shade400 : AppColors.indigoGray),
                         ),
                       ],
                     ),
@@ -414,27 +347,20 @@ class _DataExportScreenState extends State<DataExportScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: _isExporting ? null : _exportToPDF,
-                icon: _isExporting
-                    ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-                    : const Icon(Icons.download, size: 18),
-                label: Text(
-                  _isExporting ? 'Generating...' : 'Generate PDF',
-                  style: const TextStyle(fontSize: 14),
-                ),
+                icon:
+                    _isExporting
+                        ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                        : const Icon(Icons.download, size: 18),
+                label: Text(_isExporting ? 'Generating...' : 'Generate PDF', style: const TextStyle(fontSize: 14)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
               ),
             ),
@@ -444,9 +370,16 @@ class _DataExportScreenState extends State<DataExportScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                  color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDarkMode ? Colors.black26 : Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -457,29 +390,19 @@ class _DataExportScreenState extends State<DataExportScreen> {
                         const SizedBox(width: 8),
                         Text(
                           'PDF Created Successfully',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                            fontSize: 14,
-                          ),
+                          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 14),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
                     Text(
                       'File: $_fileName',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
-                      ),
+                      style: TextStyle(fontSize: 13, color: isDarkMode ? Colors.grey[400] : Colors.grey[700]),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Location: App Documents',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDarkMode ? Colors.grey[500] : Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 12, color: isDarkMode ? Colors.grey[500] : Colors.grey[600]),
                     ),
                     const SizedBox(height: 12),
                     SizedBox(
@@ -487,10 +410,7 @@ class _DataExportScreenState extends State<DataExportScreen> {
                       child: ElevatedButton.icon(
                         onPressed: _sharePDF,
                         icon: const Icon(Icons.info, size: 16),
-                        label: const Text(
-                          'View Details',
-                          style: TextStyle(fontSize: 13),
-                        ),
+                        label: const Text('View Details', style: TextStyle(fontSize: 13)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
@@ -509,24 +429,21 @@ class _DataExportScreenState extends State<DataExportScreen> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: isDarkMode ? Colors.blue[900]!.withOpacity(0.2) : Colors.blue[50],
-                borderRadius: BorderRadius.circular(10),
+                color: isDarkMode ? AppColors.primary.withValues(alpha: 0.08) : AppColors.primary.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.info_outline,
-                    color: isDarkMode ? Colors.blue[300] : Colors.blue[700],
-                    size: 20,
-                  ),
+                  const Icon(Icons.info_outline, color: AppColors.primary, size: 20),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'Your data is exported to a secure PDF file for backup and compliance purposes.',
                       style: TextStyle(
                         fontSize: 12,
-                        color: isDarkMode ? Colors.blue[200] : Colors.blue[800],
+                        color: isDarkMode ? Colors.grey.shade300 : AppColors.darkBlue,
                         height: 1.4,
                       ),
                     ),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:meditrack/model/pharmacy.dart';
 import 'package:meditrack/services/pharmacy_service.dart';
@@ -17,9 +16,9 @@ class _PharmacySearchScreenState extends State<PharmacySearchScreen> {
 
   List<Pharmacy> _pharmacies = [];
   bool _isLoading = false;
+  // ignore: unused_field
   bool _isSearching = false;
   String? _errorMessage;
-  Position? _currentPosition;
 
   @override
   void initState() {
@@ -49,8 +48,6 @@ class _PharmacySearchScreenState extends State<PharmacySearchScreen> {
         });
         return;
       }
-
-      _currentPosition = position;
 
       // Search for pharmacies
       final pharmacies = await _pharmacyService.searchNearbyPharmacies(
@@ -88,21 +85,13 @@ class _PharmacySearchScreenState extends State<PharmacySearchScreen> {
         await launchUrl(url, mode: LaunchMode.externalApplication);
       } else {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not open Google Maps'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Could not open Google Maps'), backgroundColor: Colors.red));
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
     }
   }
 
@@ -151,9 +140,7 @@ class _PharmacySearchScreenState extends State<PharmacySearchScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(
-            color: AppColors.primary,
-          ),
+          CircularProgressIndicator(color: AppColors.primary),
           SizedBox(height: 16),
           Text('Searching for nearby pharmacies...'),
         ],
@@ -168,19 +155,12 @@ class _PharmacySearchScreenState extends State<PharmacySearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 80,
-              color: Colors.red[300],
-            ),
+            Icon(Icons.error_outline, size: 80, color: Colors.red[300]),
             const SizedBox(height: 16),
             Text(
               _errorMessage ?? 'An error occurred',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
-              ),
+              style: TextStyle(fontSize: 16, color: isDarkMode ? Colors.grey[400] : Colors.grey[700]),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -204,27 +184,14 @@ class _PharmacySearchScreenState extends State<PharmacySearchScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.local_pharmacy_outlined,
-            size: 80,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.local_pharmacy_outlined, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             'No pharmacies found nearby',
-            style: TextStyle(
-              fontSize: 18,
-              color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
-            ),
+            style: TextStyle(fontSize: 18, color: isDarkMode ? Colors.grey[400] : Colors.grey[700]),
           ),
           const SizedBox(height: 8),
-          Text(
-            'Try searching in a different location',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
-          ),
+          Text('Try searching in a different location', style: TextStyle(fontSize: 14, color: Colors.grey[500])),
         ],
       ),
     );
@@ -245,9 +212,7 @@ class _PharmacySearchScreenState extends State<PharmacySearchScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -267,21 +232,22 @@ class _PharmacySearchScreenState extends State<PharmacySearchScreen> {
                     ),
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: pharmacy.isOpen ? Colors.green[100] : Colors.red[100],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    pharmacy.isOpen ? 'Open' : 'Closed',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: pharmacy.isOpen ? Colors.green[800] : Colors.red[800],
+                if (pharmacy.isOpen != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: pharmacy.isOpen! ? Colors.green[100] : Colors.red[100],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      pharmacy.isOpen! ? 'Open' : 'Closed',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: pharmacy.isOpen! ? Colors.green[800] : Colors.red[800],
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
 
@@ -291,19 +257,12 @@ class _PharmacySearchScreenState extends State<PharmacySearchScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.location_on_outlined,
-                  size: 18,
-                  color: Colors.grey[600],
-                ),
+                Icon(Icons.location_on_outlined, size: 18, color: Colors.grey[600]),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     pharmacy.address,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
-                    ),
+                    style: TextStyle(fontSize: 14, color: isDarkMode ? Colors.grey[400] : Colors.grey[700]),
                   ),
                 ),
               ],
@@ -319,11 +278,7 @@ class _PharmacySearchScreenState extends State<PharmacySearchScreen> {
                   const SizedBox(width: 4),
                   Text(
                     '${pharmacy.distance!.toStringAsFixed(1)} km',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.blue[600],
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.blue[600], fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(width: 16),
                 ],
@@ -332,10 +287,7 @@ class _PharmacySearchScreenState extends State<PharmacySearchScreen> {
                   const SizedBox(width: 4),
                   Text(
                     pharmacy.rating!.toStringAsFixed(1),
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
-                    ),
+                    style: TextStyle(fontSize: 14, color: isDarkMode ? Colors.grey[400] : Colors.grey[700]),
                   ),
                 ],
               ],
@@ -353,9 +305,7 @@ class _PharmacySearchScreenState extends State<PharmacySearchScreen> {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.primary,
                   side: const BorderSide(color: AppColors.primary),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),

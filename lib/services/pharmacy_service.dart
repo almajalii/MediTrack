@@ -1,138 +1,104 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import '../model/pharmacy.dart';
 
 class PharmacyService {
-  // REPLACE WITH YOUR API KEY
-  static const String _apiKey = 'AIzaSyDPD7MUIcH7GOjuuNtEmsn_NosQNj7crJk';
-  static const String _baseUrl = 'https://maps.googleapis.com/maps/api/place';
+  static const String _overpassUrl = 'https://overpass-api.de/api/interpreter';
 
-  // Get current location with better error handling
   Future<Position?> getCurrentLocation() async {
     try {
-      print('🔍 Checking location services...');
-      
-      // Check if location services are enabled
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      print('📍 Location service enabled: $serviceEnabled');
-      
-      if (!serviceEnabled) {
-        print('❌ Location services are disabled');
-        return null;
-      }
+      if (!serviceEnabled) return null;
 
-      // Check location permissions
       LocationPermission permission = await Geolocator.checkPermission();
-      print('🔐 Current permission: $permission');
-      
       if (permission == LocationPermission.denied) {
-        print('⚠️ Permission denied, requesting...');
         permission = await Geolocator.requestPermission();
-        print('🔐 New permission: $permission');
-        
-        if (permission == LocationPermission.denied) {
-          print('❌ Permission denied by user');
-          return null;
-        }
+        if (permission == LocationPermission.denied) return null;
       }
+      if (permission == LocationPermission.deniedForever) return null;
 
-      if (permission == LocationPermission.deniedForever) {
-        print('❌ Permission denied forever');
-        return null;
-      }
-
-      print('✅ Getting current position...');
-      
-      // Get current position
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-      
-      print('✅ Got location: ${position.latitude}, ${position.longitude}');
-      return position;
-      
+      return await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
     } catch (e) {
-      print('❌ Error getting location: $e');
       return null;
     }
   }
 
-  // Calculate distance between two points (in kilometers)
   double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
     return Geolocator.distanceBetween(lat1, lon1, lat2, lon2) / 1000;
   }
 
-  // Search for nearby pharmacies
   Future<List<Pharmacy>> searchNearbyPharmacies({
     required double latitude,
     required double longitude,
-    int radius = 5000, // 5km radius
+    int radius = 5000,
   }) async {
+    final query =
+        '[out:json];node["amenity"="pharmacy"](around:$radius,$latitude,$longitude);out body;';
+
+    const headers = {'Accept': '*/*', 'User-Agent': 'MediTrackApp/1.0'};
+
+    http.Response response;
     try {
-      print('🔍 Searching pharmacies near: $latitude, $longitude');
-      
-      final url = Uri.parse(
-        '$_baseUrl/nearbysearch/json?location=$latitude,$longitude&radius=$radius&type=pharmacy&key=$_apiKey',
-      );
-
-      print('🌐 API URL: $url');
-      
-      final response = await http.get(url);
-
-      print('📡 Response status: ${response.statusCode}');
-      print('📡 Response body: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}...');
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        
-        print('📊 API Status: ${data['status']}');
-        
-        if (data['status'] == 'OK') {
-          final results = data['results'] as List;
-          print('✅ Found ${results.length} pharmacies');
-          
-          return results.map((json) {
-            final pharmLat = json['geometry']['location']['lat'].toDouble();
-            final pharmLng = json['geometry']['location']['lng'].toDouble();
-            final distance = calculateDistance(latitude, longitude, pharmLat, pharmLng);
-            
-            return Pharmacy.fromJson(json, distance);
-          }).toList()
-            ..sort((a, b) => (a.distance ?? 0).compareTo(b.distance ?? 0)); // Sort by distance
-        } else {
-          print('❌ API Error: ${data['status']} - ${data['error_message'] ?? 'No error message'}');
-        }
-      } else {
-        print('❌ HTTP Error: ${response.statusCode}');
+      final uri = Uri.parse(_overpassUrl).replace(queryParameters: {'data': query});
+      response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 20));
+    } catch (primaryError) {
+      try {
+        final mirrorUri = Uri.parse('https://overpass.kumi.systems/api/interpreter')
+            .replace(queryParameters: {'data': query});
+        response = await http.get(mirrorUri, headers: headers).timeout(const Duration(seconds: 20));
+      } catch (mirrorError) {
+        throw Exception(
+          'Overpass API unreachable. Primary: $primaryError. Mirror: $mirrorError',
+        );
       }
-
-      return [];
-    } catch (e) {
-      print('❌ Error searching pharmacies: $e');
-      return [];
     }
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Overpass API error ${response.statusCode}: '
+        '${response.body.substring(0, response.body.length.clamp(0, 300))}',
+      );
+    }
+
+    final Map<String, dynamic> data;
+    try {
+      data = json.decode(response.body) as Map<String, dynamic>;
+    } on FormatException {
+      throw Exception('Invalid JSON response from Overpass API');
+    }
+
+    final elements = (data['elements'] as List?) ?? [];
+
+    return elements
+        .map((e) {
+          final pharmLat = (e['lat'] as num?)?.toDouble();
+          final pharmLng = (e['lon'] as num?)?.toDouble();
+          if (pharmLat == null || pharmLng == null) return null;
+          final distance = calculateDistance(latitude, longitude, pharmLat, pharmLng);
+          final tags = (e['tags'] as Map<String, dynamic>?) ?? {};
+          final openingHours = tags['opening_hours'] as String?;
+
+          return Pharmacy(
+            placeId: e['id'].toString(),
+            name: tags['name'] as String? ?? 'Pharmacy',
+            address: tags['addr:street'] != null
+                ? '${tags['addr:street']} ${tags['addr:housenumber'] ?? ''}'.trim()
+                : 'Address not available',
+            latitude: pharmLat,
+            longitude: pharmLng,
+            isOpen: openingHours == null ? null : openingHours == '24/7',
+            phoneNumber: tags['phone'] as String?,
+            distance: distance,
+          );
+        })
+        .whereType<Pharmacy>()
+        .toList()
+      ..sort((a, b) => (a.distance ?? 0).compareTo(b.distance ?? 0));
   }
 
-  // Get place details (for phone number, etc.)
   Future<Map<String, dynamic>?> getPlaceDetails(String placeId) async {
-    try {
-      final url = Uri.parse(
-        '$_baseUrl/details/json?place_id=$placeId&fields=formatted_phone_number,website&key=$_apiKey',
-      );
-
-      final response = await http.get(url);
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['status'] == 'OK') {
-          return data['result'];
-        }
-      }
-      return null;
-    } catch (e) {
-      print('Error getting place details: $e');
-      return null;
-    }
+    return null; // Not needed with Overpass
   }
 }

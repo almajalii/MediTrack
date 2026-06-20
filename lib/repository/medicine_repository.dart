@@ -1,9 +1,12 @@
-//middle layer between your Firestore database and your BLoC
+﻿//middle layer between your Firestore database and your BLoC
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:meditrack/model/medicine.dart';
 
 class MedicineRepository {
-  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore firestore;
+
+  MedicineRepository({FirebaseFirestore? firestore})
+      : firestore = firestore ?? FirebaseFirestore.instance;
 
   //1 getMedicines
   Stream<List<Medicine>> getMedicines(String userId) {
@@ -20,7 +23,7 @@ class MedicineRepository {
 
   //2 addMedicines
   Future<void> addMedicine(String userId, Medicine medicine) async {
-    await FirebaseFirestore.instance
+    await firestore
         .collection('users')
         .doc(userId)
         .collection('medicines')
@@ -88,8 +91,8 @@ class MedicineRepository {
         .delete();
   }
 
-  //7 decrement quantity by one
-  Future<void> decrementMedicineQuantity(String userId, String medId) async {
+  //7 decrement quantity by the dosage amount
+  Future<void> decrementMedicineQuantity(String userId, String medId, {int amount = 1}) async {
     final docRef = firestore
         .collection('users')
         .doc(userId)
@@ -98,12 +101,31 @@ class MedicineRepository {
 
     await firestore.runTransaction((transaction) async {
       final snapshot = await transaction.get(docRef);
-      final currentQty = snapshot['quantity'] ?? 0;
+      final currentQty = (snapshot['quantity'] ?? 0) as int;
 
       if (currentQty > 0) {
-        transaction.update(docRef, {'quantity': currentQty - 1});
+        final newQty = (currentQty - amount).clamp(0, currentQty);
+        transaction.update(docRef, {'quantity': newQty});
       }
     });
+  }
+
+  // Parses the numeric unit count from a dosage string.
+  // "2 tablets" → 2, "500mg" → 1 (strength unit, not a count), "1 capsule" → 1
+  static int parseDosageAmount(String dosage) {
+    final match = RegExp(r'^(\d+(?:\.\d+)?)\s*(.*)').firstMatch(dosage.trim());
+    if (match == null) return 1;
+
+    final number = double.tryParse(match.group(1) ?? '') ?? 1.0;
+    final unit = (match.group(2) ?? '').toLowerCase().trim();
+
+    // Strength units → quantity means 1 physical unit (pill/capsule/etc.)
+    const strengthUnits = ['mg', 'mcg', 'g', 'ml', 'l', 'iu', 'μg', 'mmol'];
+    for (final su in strengthUnits) {
+      if (unit.startsWith(su)) return 1;
+    }
+
+    return number.round().clamp(1, 20);
   }
 
   //8 Search medicines by name
@@ -222,7 +244,6 @@ class MedicineRepository {
 
       return Medicine.fromFirestore(doc);
     } catch (e) {
-      print('Error getting medicine by ID: $e');
       return null;
     }
   }

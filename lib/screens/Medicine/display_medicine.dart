@@ -63,7 +63,7 @@ class _DisplayMedicineState extends State<DisplayMedicine>
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDarkMode ? const Color(0xFF121212) : Colors.white,
+      backgroundColor: isDarkMode ? const Color(0xFF121212) : const Color(0xFFF5F7FA),
       body: BlocBuilder<MedicineBloc, MedicineState>(
         builder: (context, state) {
           if (state is MedicineLoadingState) {
@@ -95,6 +95,40 @@ class _DisplayMedicineState extends State<DisplayMedicine>
               children: [
                 const SizedBox(height: 16),
 
+                // Header row: title + count badge
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Text(
+                        'My Inventory',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode ? Colors.white : AppColors.darkBlue,
+                        ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '${medicines.length} medicines',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+
                 // Search bar with Recycle Bin button
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -118,10 +152,22 @@ class _DisplayMedicineState extends State<DisplayMedicine>
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide.none,
+                              borderSide: BorderSide(
+                                color: isDarkMode ? const Color(0xFF3C3C3C) : const Color(0xFFDDE3EE),
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: isDarkMode ? const Color(0xFF3C3C3C) : const Color(0xFFDDE3EE),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: AppColors.primary, width: 2),
                             ),
                             filled: true,
-                            fillColor: isDarkMode ? const Color(0xFF2C2C2C) : Colors.grey[200],
+                            fillColor: isDarkMode ? const Color(0xFF2C2C2C) : Colors.white,
                             contentPadding: const EdgeInsets.symmetric(
                               vertical: 0,
                               horizontal: 16,
@@ -140,26 +186,27 @@ class _DisplayMedicineState extends State<DisplayMedicine>
                       // Recycle Bin Button
                       Container(
                         decoration: BoxDecoration(
-                          color: isDarkMode ? const Color(0xFF2C2C2C) : Colors.grey[200],
+                          color: isDarkMode ? const Color(0xFF2C2C2C) : Colors.white,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: isDarkMode ? const Color(0xFF3C3C3C) : Colors.grey[300]!,
+                            color: isDarkMode ? const Color(0xFF3C3C3C) : const Color(0xFFDDE3EE),
                           ),
                         ),
                         child: IconButton(
                           icon: Icon(
                             Icons.delete_outline,
-                            color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
+                            color: isDarkMode ? Colors.grey[400] : AppColors.darkBlue,
                           ),
                           tooltip: 'Recycle Bin',
                           onPressed: () async {
+                            final bloc = context.read<MedicineBloc>();
                             await Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => RemovedMedicinesScreen(userId: userId),
                               ),
                             );
                             if (mounted) {
-                              context.read<MedicineBloc>().add(LoadMedicinesEvent(userId));
+                              bloc.add(LoadMedicinesEvent(userId));
                             }
                           },
                         ),
@@ -183,13 +230,13 @@ class _DisplayMedicineState extends State<DisplayMedicine>
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
                               color: selectedType != null
-                                  ? AppColors.primary.withOpacity(0.2)
-                                  : (isDarkMode ? const Color(0xFF2C2C2C) : Colors.grey[200]),
+                                  ? AppColors.primary.withValues(alpha: 0.12)
+                                  : (isDarkMode ? const Color(0xFF2C2C2C) : Colors.white),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
                                 color: selectedType != null
                                     ? AppColors.primary
-                                    : (isDarkMode ? const Color(0xFF3C3C3C) : Colors.grey[300]!),
+                                    : (isDarkMode ? const Color(0xFF3C3C3C) : const Color(0xFFDDE3EE)),
                               ),
                             ),
                             child: Row(
@@ -260,13 +307,13 @@ class _DisplayMedicineState extends State<DisplayMedicine>
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
                               color: selectedCategory != null
-                                  ? AppColors.primary.withOpacity(0.2)
-                                  : (isDarkMode ? const Color(0xFF2C2C2C) : Colors.grey[200]),
+                                  ? AppColors.primary.withValues(alpha: 0.12)
+                                  : (isDarkMode ? const Color(0xFF2C2C2C) : Colors.white),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
                                 color: selectedCategory != null
                                     ? AppColors.primary
-                                    : (isDarkMode ? const Color(0xFF3C3C3C) : Colors.grey[300]!),
+                                    : (isDarkMode ? const Color(0xFF3C3C3C) : const Color(0xFFDDE3EE)),
                               ),
                             ),
                             child: Row(
@@ -345,11 +392,11 @@ class _DisplayMedicineState extends State<DisplayMedicine>
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Text(
-                      '${medicinesFiltered.length} result(s) found',
-                      style: TextStyle(
-                        color: isDarkMode ? Colors.grey[500] : Colors.grey[600],
+                      '${medicinesFiltered.length} result${medicinesFiltered.length == 1 ? '' : 's'} found',
+                      style: const TextStyle(
+                        color: AppColors.primary,
                         fontSize: 12,
-                        fontStyle: FontStyle.italic,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
